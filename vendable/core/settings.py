@@ -36,7 +36,14 @@ class Settings(BaseSettings):
 
     # --- mandate signing ---
     vendable_mandate_issuer: str = "https://vendable.local/mandates"
-    vendable_mandate_private_key_pem: str = ""
+    vendable_mandate_key_path: Path = REPO_ROOT / ".vendable" / "mandate_key.pem"
+    """Ed25519 private key, in its own file.
+
+    Deliberately not an env var: a PEM is multi-line, and squeezing one into .env means
+    escaping newlines, which python-dotenv only unescapes inside double quotes. That is a
+    footgun that fires as a MalformedFraming error at signing time rather than at load time.
+    A file holds a PEM the way a PEM wants to be held.
+    """
 
     # --- Razorpay (test mode only) ---
     razorpay_key_id: str = ""
@@ -53,6 +60,23 @@ class Settings(BaseSettings):
     @property
     def allowed_hosts(self) -> list[str]:
         return [h.strip() for h in self.vendable_allowed_hosts.split(",") if h.strip()]
+
+    def mandate_private_key(self) -> str:
+        """Read the signing key, generating one on first use.
+
+        Generating on demand keeps `git clone && run` working with no setup step. The key
+        never leaves this machine and is gitignored -- and because it persists, a mandate
+        minted yesterday still verifies today, which an ephemeral per-process key would not.
+        """
+        path = Path(self.vendable_mandate_key_path)
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+        from vendable.mandate.ap2 import generate_keypair
+
+        private_pem, _ = generate_keypair()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(private_pem, encoding="utf-8")
+        return private_pem
 
     @property
     def llm_configured(self) -> bool:

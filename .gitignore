@@ -20,3 +20,6 @@ evidence/raw/
 *.db
 *.db-wal
 *.db-shm
+
+# generated mandate signing key
+.vendable/
