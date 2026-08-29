@@ -43,13 +43,20 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
 
-    # --- Gemini ---
-    gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.5-flash"
+    # --- LLM (OpenAI) ---
+    openai_api_key: str = ""
+    openai_model: str = "gpt-5"
+    """Used where judgement is needed: extraction, policy compilation, negotiation."""
+    openai_model_fast: str = "gpt-5-mini"
+    """Used for the injection classifier, where latency matters more than nuance."""
 
     @property
     def allowed_hosts(self) -> list[str]:
         return [h.strip() for h in self.vendable_allowed_hosts.split(",") if h.strip()]
+
+    @property
+    def llm_configured(self) -> bool:
+        return bool(self.openai_api_key)
 
     @property
     def razorpay_configured(self) -> bool:

@@ -18,9 +18,11 @@ dependencies = [
     "pydantic-settings>=2.6.0",
     "python-dotenv>=1.0.0",
     # LLM
-    "google-genai>=0.3.0",
+    "openai>=1.60.0",
     # payments
     "razorpay>=1.4.2",
+    # the last mile of checkout has no agent-facing API; see DECISIONS.md D-004
+    "playwright>=1.49.0",
     # mandate signing (AP2-shaped JWT)
     "pyjwt[crypto]>=2.9.0",
     # cli

@@ -24,7 +24,8 @@ from typing import Any
 import httpx
 
 from vendable.core.money import Paise
-from vendable.core.settings import Settings, settings as default_settings
+from vendable.core.settings import Settings
+from vendable.core.settings import settings as default_settings
 
 API_BASE = "https://api.razorpay.com/v1"
 

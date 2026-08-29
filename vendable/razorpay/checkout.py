@@ -28,7 +28,8 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 
-from playwright.sync_api import Page, TimeoutError as PWTimeout, sync_playwright
+from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import TimeoutError as PWTimeout
 
 # Set before Playwright launches. Chromium is ~700 MB and C: runs at under 400 MB free.
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "D:/tmp/pw-browsers")
