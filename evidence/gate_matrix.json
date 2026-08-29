@@ -1,0 +1,631 @@
+{
+  "total": 62,
+  "correct": 62,
+  "accuracy_pct": 100.0,
+  "true_allow": 30,
+  "true_refuse": 32,
+  "false_accept": 0,
+  "false_reject": 0,
+  "cases": [
+    {
+      "id": "CAP-1000",
+      "group": "cap boundary",
+      "case": "cart is cap-1000 paise (\u20b94,990.00 against a \u20b95,000.00 cap)",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,990.00 against mandate 426a8173 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "CAP-100",
+      "group": "cap boundary",
+      "case": "cart is cap-100 paise (\u20b94,999.00 against a \u20b95,000.00 cap)",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.00 against mandate a72617a2 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "CAP-10",
+      "group": "cap boundary",
+      "case": "cart is cap-10 paise (\u20b94,999.90 against a \u20b95,000.00 cap)",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.90 against mandate ab97f2f6 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "CAP-1",
+      "group": "cap boundary",
+      "case": "cart is cap-1 paise (\u20b94,999.99 against a \u20b95,000.00 cap)",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.99 against mandate cc4583e7 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "CAP+0",
+      "group": "cap boundary",
+      "case": "cart is cap+0 paise (\u20b95,000.00 against a \u20b95,000.00 cap)",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b95,000.00 against mandate fb95fa92 held by buyer-agent-7, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+    },
+    {
+      "id": "CAP+1",
+      "group": "cap boundary",
+      "case": "cart is cap+1 paise (\u20b95,000.01 against a \u20b95,000.00 cap)",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,000.01 against mandate d0a40e96. Cart total \u20b95,000.01 exceeds the mandate cap of \u20b95,000.00 by \u20b90.01. Remove \u20b90.01 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "CAP+10",
+      "group": "cap boundary",
+      "case": "cart is cap+10 paise (\u20b95,000.10 against a \u20b95,000.00 cap)",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,000.10 against mandate 214f1563. Cart total \u20b95,000.10 exceeds the mandate cap of \u20b95,000.00 by \u20b90.10. Remove \u20b90.10 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "CAP+100",
+      "group": "cap boundary",
+      "case": "cart is cap+100 paise (\u20b95,001.00 against a \u20b95,000.00 cap)",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,001.00 against mandate 00a3d894. Cart total \u20b95,001.00 exceeds the mandate cap of \u20b95,000.00 by \u20b91.00. Remove \u20b91.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "CAP+1000",
+      "group": "cap boundary",
+      "case": "cart is cap+1000 paise (\u20b95,010.00 against a \u20b95,000.00 cap)",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,010.00 against mandate ec66a4d5. Cart total \u20b95,010.00 exceeds the mandate cap of \u20b95,000.00 by \u20b910.00. Remove \u20b910.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "AMT-0.01",
+      "group": "amount range",
+      "case": "cart of \u20b90.01",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b90.01 against mandate c4ba7396 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "AMT-1",
+      "group": "amount range",
+      "case": "cart of \u20b91.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b91.00 against mandate 49f154a3 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "AMT-99.99",
+      "group": "amount range",
+      "case": "cart of \u20b999.99",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b999.99 against mandate cd51ada4 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "AMT-1000",
+      "group": "amount range",
+      "case": "cart of \u20b91,000.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b91,000.00 against mandate 49f9d95c held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "AMT-4999.99",
+      "group": "amount range",
+      "case": "cart of \u20b94,999.99",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.99 against mandate 31711e63 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "AMT-5000",
+      "group": "amount range",
+      "case": "cart of \u20b95,000.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b95,000.00 against mandate f89b38c5 held by buyer-agent-7, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+    },
+    {
+      "id": "AMT-5000.01",
+      "group": "amount range",
+      "case": "cart of \u20b95,000.01",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,000.01 against mandate ea202d2a. Cart total \u20b95,000.01 exceeds the mandate cap of \u20b95,000.00 by \u20b90.01. Remove \u20b90.01 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "AMT-50000",
+      "group": "amount range",
+      "case": "cart of \u20b950,000.00",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b950,000.00 against mandate e712c6d9. Cart total \u20b950,000.00 exceeds the mandate cap of \u20b95,000.00 by \u20b945,000.00. Remove \u20b945,000.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "MULTI-2-4999",
+      "group": "multi-line totals",
+      "case": "2 lines summing to \u20b94,999.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.00 against mandate 0aa3434d held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "MULTI-2-5000",
+      "group": "multi-line totals",
+      "case": "2 lines summing to \u20b95,000.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b95,000.00 against mandate 00b7c522 held by buyer-agent-7, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+    },
+    {
+      "id": "MULTI-2-5001",
+      "group": "multi-line totals",
+      "case": "2 lines summing to \u20b95,001.00",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,001.00 against mandate 0cafc60c. Cart total \u20b95,001.00 exceeds the mandate cap of \u20b95,000.00 by \u20b91.00. Remove \u20b91.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "MULTI-3-4999",
+      "group": "multi-line totals",
+      "case": "3 lines summing to \u20b94,999.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.00 against mandate ca01486e held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "MULTI-3-5000",
+      "group": "multi-line totals",
+      "case": "3 lines summing to \u20b95,000.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b95,000.00 against mandate c43bb78f held by buyer-agent-7, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+    },
+    {
+      "id": "MULTI-3-5001",
+      "group": "multi-line totals",
+      "case": "3 lines summing to \u20b95,001.00",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,001.00 against mandate d692de20. Cart total \u20b95,001.00 exceeds the mandate cap of \u20b95,000.00 by \u20b91.00. Remove \u20b91.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "MULTI-5-4999",
+      "group": "multi-line totals",
+      "case": "5 lines summing to \u20b94,999.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.00 against mandate 4b947519 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "MULTI-5-5000",
+      "group": "multi-line totals",
+      "case": "5 lines summing to \u20b95,000.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b95,000.00 against mandate 86c21f8c held by buyer-agent-7, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+    },
+    {
+      "id": "MULTI-5-5001",
+      "group": "multi-line totals",
+      "case": "5 lines summing to \u20b95,001.00",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,001.00 against mandate 6a948b65. Cart total \u20b95,001.00 exceeds the mandate cap of \u20b95,000.00 by \u20b91.00. Remove \u20b91.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "MULTI-10-4999",
+      "group": "multi-line totals",
+      "case": "10 lines summing to \u20b94,999.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b94,999.00 against mandate fc0296f5 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "MULTI-10-5000",
+      "group": "multi-line totals",
+      "case": "10 lines summing to \u20b95,000.00",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b95,000.00 against mandate 84d2c29e held by buyer-agent-7, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+    },
+    {
+      "id": "MULTI-10-5001",
+      "group": "multi-line totals",
+      "case": "10 lines summing to \u20b95,001.00",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_over_cap",
+      "explanation": "Refused \u20b95,001.00 against mandate ecb45356. Cart total \u20b95,001.00 exceeds the mandate cap of \u20b95,000.00 by \u20b91.00. Remove \u20b91.00 of items, or present a mandate with a higher cap."
+    },
+    {
+      "id": "EXP-fresh",
+      "group": "expiry",
+      "case": "mandate fresh",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 3eaacc40 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "EXP-1s-left",
+      "group": "expiry",
+      "case": "mandate 1s left",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 291c5ed4 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "EXP-just-expired",
+      "group": "expiry",
+      "case": "mandate just expired",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate has expired. Ask the buyer to issue a fresh one."
+    },
+    {
+      "id": "EXP-long-expired",
+      "group": "expiry",
+      "case": "mandate long expired",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate has expired. Ask the buyer to issue a fresh one."
+    },
+    {
+      "id": "EXP-issued-and-expired",
+      "group": "expiry",
+      "case": "mandate issued and expired",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate has expired. Ask the buyer to issue a fresh one."
+    },
+    {
+      "id": "AUD-acme-fasteners",
+      "group": "audience",
+      "case": "mandate issued for 'acme-fasteners'",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 6b2d1be7 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "AUD-acme-fastener",
+      "group": "audience",
+      "case": "mandate issued for 'acme-fastener'",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate was not issued for 'acme-fasteners'. It cannot be used here."
+    },
+    {
+      "id": "AUD-ACME-FASTENERS",
+      "group": "audience",
+      "case": "mandate issued for 'ACME-FASTENERS'",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate was not issued for 'acme-fasteners'. It cannot be used here."
+    },
+    {
+      "id": "AUD-some-other-shop",
+      "group": "audience",
+      "case": "mandate issued for 'some-other-shop'",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate was not issued for 'acme-fasteners'. It cannot be used here."
+    },
+    {
+      "id": "AUD-empty",
+      "group": "audience",
+      "case": "mandate issued for '(empty)'",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. This mandate was not issued for 'acme-fasteners'. It cannot be used here."
+    },
+    {
+      "id": "CCY-INR-INR",
+      "group": "currency",
+      "case": "INR mandate against a INR cart",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 2705a548 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "CCY-USD-INR",
+      "group": "currency",
+      "case": "USD mandate against a INR cart",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "currency_mismatch",
+      "explanation": "Refused \u20b9100.00 against mandate ba6f6856. The mandate authorises USD; this cart is priced in INR. No conversion is performed."
+    },
+    {
+      "id": "CCY-INR-USD",
+      "group": "currency",
+      "case": "INR mandate against a USD cart",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "unsupported_currency",
+      "explanation": "Refused \u20b9100.00 against mandate 03d39f7e. This merchant settles only in INR; the cart is priced in USD. No conversion is performed. Re-price the cart in INR. The mandate authorises INR; this cart is priced in USD. No conversion is performed."
+    },
+    {
+      "id": "CCY-EUR-EUR",
+      "group": "currency",
+      "case": "EUR mandate against a EUR cart",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "unsupported_currency",
+      "explanation": "Refused \u20b9100.00 against mandate 7b945601. This merchant settles only in INR; the cart is priced in EUR. No conversion is performed. Re-price the cart in INR."
+    },
+    {
+      "id": "PAYEE-1-in",
+      "group": "payee allowlist",
+      "case": "allowed_payees = ['acme-fasteners']",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 402ba7cb held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "PAYEE-2-in",
+      "group": "payee allowlist",
+      "case": "allowed_payees = ['acme-fasteners', 'another-shop']",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 04d9c206 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "PAYEE-1-out",
+      "group": "payee allowlist",
+      "case": "allowed_payees = ['another-shop']",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "payee_not_allowed",
+      "explanation": "Refused \u20b9100.00 against mandate a22a03b0. 'acme-fasteners' is not in this mandate's allowed payees (another-shop)."
+    },
+    {
+      "id": "PAYEE-0-out",
+      "group": "payee allowlist",
+      "case": "allowed_payees = []",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "payee_not_allowed",
+      "explanation": "Refused \u20b9100.00 against mandate e755703e. 'acme-fasteners' is not in this mandate's allowed payees ()."
+    },
+    {
+      "id": "MIN-99.99",
+      "group": "minimum bound",
+      "case": "cart of \u20b999.99 against a \u20b9100.00 minimum",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "amount_under_min",
+      "explanation": "Refused \u20b999.99 against mandate 20bd7697. Cart total \u20b999.99 is below the mandate minimum of \u20b9100.00."
+    },
+    {
+      "id": "MIN-100",
+      "group": "minimum bound",
+      "case": "cart of \u20b9100.00 against a \u20b9100.00 minimum",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.00 against mandate 6bdf96ef held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "MIN-100.01",
+      "group": "minimum bound",
+      "case": "cart of \u20b9100.01 against a \u20b9100.00 minimum",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9100.01 against mandate ef67e855 held by buyer-agent-7, within its \u20b95,000.00 cap."
+    },
+    {
+      "id": "MAL-nocap",
+      "group": "malformed",
+      "case": "no amount_range constraint at all",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "no_amount_constraint",
+      "explanation": "Refused \u20b9100.00 against mandate 06b5a4e5. This mandate carries no payment.amount_range constraint, so it authorises no specific amount. A mandate without a cap is refused rather than treated as unlimited."
+    },
+    {
+      "id": "MAL-empty",
+      "group": "malformed",
+      "case": "no constraints at all",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "no_amount_constraint",
+      "explanation": "Refused \u20b9100.00 against mandate ccdfd808. This mandate carries no payment.amount_range constraint, so it authorises no specific amount. A mandate without a cap is refused rather than treated as unlimited."
+    },
+    {
+      "id": "MAL-garbage",
+      "group": "malformed",
+      "case": "not a token at all",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. Mandate is not a valid token: Not enough segments"
+    },
+    {
+      "id": "MAL-blank",
+      "group": "malformed",
+      "case": "empty string as the mandate",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. Mandate is not a valid token: Not enough segments"
+    },
+    {
+      "id": "MAL-truncated",
+      "group": "malformed",
+      "case": "a valid token with its signature chopped off",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. Mandate signature does not verify. It was altered after signing, or signed with a key this merchant does not trust."
+    },
+    {
+      "id": "MAL-otherkey",
+      "group": "malformed",
+      "case": "signed with a key the merchant does not trust",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "mandate_invalid",
+      "explanation": "Refused before any pricing was considered. Mandate signature does not verify. It was altered after signing, or signed with a key this merchant does not trust."
+    },
+    {
+      "id": "MAL-emptycart",
+      "group": "malformed",
+      "case": "a valid mandate against an empty cart",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "empty_cart",
+      "explanation": "Refused \u20b90.00 against mandate 4a7f8d51. There is nothing in the cart to pay for."
+    },
+    {
+      "id": "BUD-0-1000",
+      "group": "cumulative budget",
+      "case": "\u20b90.00 already spent, \u20b91,000.00 requested, \u20b91,500.00 budget",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b91,000.00 against mandate f1ff1563 held by buyer-agent-7, within its \u20b92,000.00 cap."
+    },
+    {
+      "id": "BUD-1000-500",
+      "group": "cumulative budget",
+      "case": "\u20b91,000.00 already spent, \u20b9500.00 requested, \u20b91,500.00 budget",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b9500.00 against mandate 88ef1dcd held by buyer-agent-7, within its \u20b92,000.00 cap."
+    },
+    {
+      "id": "BUD-1000-501",
+      "group": "cumulative budget",
+      "case": "\u20b91,000.00 already spent, \u20b9501.00 requested, \u20b91,500.00 budget",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "budget_exhausted",
+      "explanation": "Refused \u20b9501.00 against mandate a96dbe53. This mandate has a total budget of \u20b91,500.00, of which \u20b91,000.00 is already committed. \u20b9500.00 remains and this cart needs \u20b9501.00."
+    },
+    {
+      "id": "BUD-1500-1",
+      "group": "cumulative budget",
+      "case": "\u20b91,500.00 already spent, \u20b91.00 requested, \u20b91,500.00 budget",
+      "expected": "refuse",
+      "actual": "refuse",
+      "correct": true,
+      "refusal_code": "budget_exhausted",
+      "explanation": "Refused \u20b91.00 against mandate b390e15a. This mandate has a total budget of \u20b91,500.00, of which \u20b91,500.00 is already committed. \u20b90.00 remains and this cart needs \u20b91.00."
+    },
+    {
+      "id": "BUD-1499-1",
+      "group": "cumulative budget",
+      "case": "\u20b91,499.00 already spent, \u20b91.00 requested, \u20b91,500.00 budget",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "refusal_code": "",
+      "explanation": "Authorised \u20b91.00 against mandate de7571f6 held by buyer-agent-7, within its \u20b92,000.00 cap."
+    }
+  ]
+}

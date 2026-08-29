@@ -191,3 +191,37 @@ authority gave the three paths a shared vocabulary, and the ordering they have t
 Both content types are valid under the spec. A client that handles only the first works
 perfectly until it meets a tool that takes long enough to matter — which is to say, it fails
 on exactly the tools worth calling. The probe now decodes either.
+
+---
+
+## 2026-08-30 · A false accept found by counting, not by attacking
+
+The red-team suite scored 37/37. Then the confusion matrix — 62 generated cases where the
+right answer is known in advance — found a real one:
+
+```
+CCY-EUR-EUR   EUR mandate against a EUR cart
+              expected refuse, got ALLOW
+              "Authorised ₹100.00 ... within its ₹5,000.00 cap."
+```
+
+The gate compared **the mandate's currency to the cart's currency**. Both of those are
+supplied by the buyer. An attacker who controls both can simply make them agree — and then
+the amounts are compared as bare integers against a cap that means *paise*, at a merchant
+that can only ever be paid in INR.
+
+**Agreement between two attacker-supplied values is not validation.** The cart's currency is
+now checked against the merchant's own settlement currency, which is server-side
+configuration and not something a buyer can influence.
+
+**Why the red team missed it and the matrix caught it.** Every red-team case was an attack I
+thought of, and I had already decided the currency check was fine, so I wrote the test that
+confirmed it (`USD mandate vs INR cart` — which passes). The matrix generated the
+combination I had not considered because it enumerates a grid rather than a hypothesis. Those
+are genuinely different instruments, and this is the argument for building both:
+
+- the red team asks *"can I break the thing I am worried about?"*
+- the matrix asks *"over everything, where does the answer disagree with the answer key?"*
+
+Fixed, pinned by `test_a_cart_in_a_currency_the_merchant_cannot_settle_is_refused`, and the
+matrix is now 62/62 with zero false accepts.

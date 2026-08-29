@@ -290,3 +290,31 @@ def test_verify_rejects_a_token_of_the_wrong_type(keypair):
     )
     with pytest.raises(MandateError, match="cannot authorise a payment"):
         verify(token, pub, audience=MERCHANT)
+
+
+# --- settlement currency, found by the confusion matrix ----------------------------
+
+
+def test_a_cart_in_a_currency_the_merchant_cannot_settle_is_refused(keypair, gate):
+    """Found as a false accept by scripts/gate_matrix.py.
+
+    The gate compared the mandate's currency to the cart's currency. Both are supplied by
+    the buyer, so an attacker who controls both can make them agree: a EUR mandate against a
+    EUR cart passed, and the amounts were then compared as bare integers against a cap that
+    means paise. Agreement between two attacker-supplied values is not validation, so the
+    cart's currency is now checked against the merchant's settlement currency instead.
+    """
+    priv, _ = keypair
+    token = mandate(priv, constraints=[AmountRange(currency="EUR", max=CAP)])
+    d = gate.evaluate(token, cart(rupees("100"), currency="EUR"))
+    assert not d.allowed
+    assert RefusalCode.UNSUPPORTED_CURRENCY in {r.code for r in d.refusals}
+    assert "settles only in INR" in d.first_refusal.message
+
+
+def test_the_settlement_check_is_independent_of_the_mandate(keypair, gate):
+    """Even a perfectly self-consistent mandate cannot introduce a new currency."""
+    priv, _ = keypair
+    for ccy in ("USD", "GBP", "AED"):
+        token = mandate(priv, constraints=[AmountRange(currency=ccy, max=CAP)])
+        assert not gate.evaluate(token, cart(rupees("100"), currency=ccy)).allowed

@@ -27,6 +27,7 @@ from vendable.mandate.ap2 import MandateClaims, MandateError, verify
 
 class RefusalCode(str, enum.Enum):
     MANDATE_INVALID = "mandate_invalid"
+    UNSUPPORTED_CURRENCY = "unsupported_currency"
     NO_AMOUNT_CONSTRAINT = "no_amount_constraint"
     CURRENCY_MISMATCH = "currency_mismatch"
     AMOUNT_OVER_CAP = "amount_over_cap"
@@ -186,10 +187,21 @@ class MandateGate:
         *,
         merchant_id: str,
         ledger: SpendLedger | None = None,
+        settlement_currency: str = "INR",
     ) -> None:
         self.public_pem = public_pem
         self.merchant_id = merchant_id
         self.ledger = ledger or SpendLedger()
+        self.settlement_currency = settlement_currency
+        """The only currency this merchant can actually be paid in.
+
+        Checked independently of the mandate. Found by the confusion matrix: comparing the
+        mandate's currency to the cart's currency passes trivially when an attacker controls
+        both, so a EUR mandate against a EUR cart was authorised even though the merchant
+        settles exclusively in INR -- and the amounts would then have been compared as bare
+        integers against an INR cap. Agreement between two attacker-supplied values is not
+        validation.
+        """
 
     def evaluate(self, token: str, cart: Cart) -> GateDecision:
         refusals: list[Refusal] = []
@@ -216,6 +228,20 @@ class MandateGate:
                 Refusal(
                     code=RefusalCode.EMPTY_CART,
                     message="There is nothing in the cart to pay for.",
+                )
+            )
+
+        # Checked against the merchant, not against the mandate. Both of those are supplied
+        # by the buyer and can agree with each other while being wrong.
+        if cart.currency != self.settlement_currency:
+            refusals.append(
+                Refusal(
+                    code=RefusalCode.UNSUPPORTED_CURRENCY,
+                    message=(
+                        f"This merchant settles only in {self.settlement_currency}; the cart "
+                        f"is priced in {cart.currency}. No conversion is performed. Re-price "
+                        f"the cart in {self.settlement_currency}."
+                    ),
                 )
             )
 
