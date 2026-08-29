@@ -1,0 +1,89 @@
+[
+  {
+    "merchant": "merchant-a",
+    "expected_skus": 6,
+    "found_skus": 6,
+    "sku_recall_pct": 100.0,
+    "field_accuracy_pct": 100.0,
+    "fields_correct": 36,
+    "fields_checked": 36,
+    "traps_passed": 2,
+    "traps_total": 2,
+    "missing_skus": [],
+    "spurious_skus": [],
+    "misses": [],
+    "error": ""
+  },
+  {
+    "merchant": "merchant-b",
+    "expected_skus": 6,
+    "found_skus": 6,
+    "sku_recall_pct": 100.0,
+    "field_accuracy_pct": 91.67,
+    "fields_correct": 33,
+    "fields_checked": 36,
+    "traps_passed": 2,
+    "traps_total": 2,
+    "missing_skus": [],
+    "spurious_skus": [],
+    "misses": [
+      {
+        "sku": "WIRE-1.5",
+        "field": "title",
+        "expected": "copper wire 1.5 sqmm 90m",
+        "got": "copper wire 1.5 sqmm 90 m coil",
+        "planted_trap": false,
+        "why": ""
+      },
+      {
+        "sku": "WIRE-2.5",
+        "field": "title",
+        "expected": "copper wire 2.5 sqmm 90m",
+        "got": "copper wire 2.5 sqmm 90 m coil",
+        "planted_trap": false,
+        "why": ""
+      },
+      {
+        "sku": "SW-1WAY",
+        "field": "title",
+        "expected": "modular switch 1 way 6a",
+        "got": "modular switch 1-way 6a",
+        "planted_trap": false,
+        "why": ""
+      }
+    ],
+    "error": ""
+  },
+  {
+    "merchant": "merchant-c",
+    "expected_skus": 6,
+    "found_skus": 6,
+    "sku_recall_pct": 100.0,
+    "field_accuracy_pct": 94.44,
+    "fields_correct": 34,
+    "fields_checked": 36,
+    "traps_passed": 2,
+    "traps_total": 2,
+    "missing_skus": [],
+    "spurious_skus": [],
+    "misses": [
+      {
+        "sku": "PAINT-EMUL-20",
+        "field": "title",
+        "expected": "interior emulsion paint 20l",
+        "got": "interior emulsion 20l",
+        "planted_trap": false,
+        "why": ""
+      },
+      {
+        "sku": "ROLLER-9",
+        "field": "title",
+        "expected": "paint roller 9 inch with tray",
+        "got": "roller 9 inch + tray",
+        "planted_trap": false,
+        "why": ""
+      }
+    ],
+    "error": ""
+  }
+]

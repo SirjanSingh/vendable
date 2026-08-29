@@ -1,0 +1,170 @@
+{
+  "merchant-a": [
+    {
+      "sku": "GI-CLAMP-25",
+      "title": "GI saddle clamp 25mm",
+      "price": "6.50",
+      "unit": "piece",
+      "hsn": "73269099",
+      "gst_pct": 18,
+      "moq": 100
+    },
+    {
+      "sku": "GI-CLAMP-32",
+      "title": "GI saddle clamp 32mm",
+      "price": "8.25",
+      "unit": "piece",
+      "hsn": "73269099",
+      "gst_pct": 18,
+      "moq": 100
+    },
+    {
+      "sku": "PVC-CONDUIT-20",
+      "title": "PVC conduit pipe 20mm",
+      "price": "42.00",
+      "unit": "length",
+      "hsn": "39172390",
+      "gst_pct": 18,
+      "moq": 20
+    },
+    {
+      "sku": "PVC-CONDUIT-25",
+      "title": "PVC conduit pipe 25mm",
+      "price": "58.00",
+      "unit": "length",
+      "hsn": "39172390",
+      "gst_pct": 18,
+      "moq": 20
+    },
+    {
+      "sku": "JB-4X4",
+      "title": "PVC junction box 4x4",
+      "price": "3.20",
+      "unit": "piece",
+      "hsn": "85389000",
+      "gst_pct": 18,
+      "moq": 100
+    },
+    {
+      "sku": "MCB-16A",
+      "title": "MCB single pole 16A",
+      "price": "109.00",
+      "unit": "piece",
+      "hsn": "85362000",
+      "gst_pct": 18,
+      "moq": 10
+    }
+  ],
+  "merchant-b": [
+    {
+      "sku": "WIRE-1.5",
+      "title": "Copper wire 1.5 sqmm 90m",
+      "price": "1180.00",
+      "unit": "coil",
+      "hsn": "85444999",
+      "gst_pct": 18,
+      "moq": 5
+    },
+    {
+      "sku": "WIRE-2.5",
+      "title": "Copper wire 2.5 sqmm 90m",
+      "price": "1890.00",
+      "unit": "coil",
+      "hsn": "85444999",
+      "gst_pct": 18,
+      "moq": 5
+    },
+    {
+      "sku": "SW-1WAY",
+      "title": "Modular switch 1 way 6A",
+      "price": "48.00",
+      "unit": "piece",
+      "hsn": "85365090",
+      "gst_pct": 18,
+      "moq": 50
+    },
+    {
+      "sku": "SOCK-6A",
+      "title": "Modular socket 6A",
+      "price": "72.00",
+      "unit": "piece",
+      "hsn": "85366990",
+      "gst_pct": 18,
+      "moq": 50
+    },
+    {
+      "sku": "PLATE-2M",
+      "title": "Modular plate 2 module",
+      "price": "95.00",
+      "unit": "piece",
+      "hsn": "85389000",
+      "gst_pct": 18,
+      "moq": 20
+    },
+    {
+      "sku": "LED-9W",
+      "title": "LED bulb 9W cool white",
+      "price": "88.00",
+      "unit": "piece",
+      "hsn": "94054090",
+      "gst_pct": 12,
+      "moq": 25
+    }
+  ],
+  "merchant-c": [
+    {
+      "sku": "PAINT-EMUL-20",
+      "title": "Interior emulsion paint 20L",
+      "price": "3450.00",
+      "unit": "bucket",
+      "hsn": "32091010",
+      "gst_pct": 18,
+      "moq": 2
+    },
+    {
+      "sku": "PAINT-PRIM-20",
+      "title": "Wall primer 20L",
+      "price": "2180.00",
+      "unit": "bucket",
+      "hsn": "32091010",
+      "gst_pct": 18,
+      "moq": 2
+    },
+    {
+      "sku": "PUTTY-40",
+      "title": "Wall putty 40kg bag",
+      "price": "980.00",
+      "unit": "bag",
+      "hsn": "32149000",
+      "gst_pct": 18,
+      "moq": 10
+    },
+    {
+      "sku": "BRUSH-4",
+      "title": "Paint brush 4 inch",
+      "price": "115.00",
+      "unit": "piece",
+      "hsn": "96032100",
+      "gst_pct": 18,
+      "moq": 12
+    },
+    {
+      "sku": "ROLLER-9",
+      "title": "Paint roller 9 inch with tray",
+      "price": "240.00",
+      "unit": "set",
+      "hsn": "96034000",
+      "gst_pct": 18,
+      "moq": 6
+    },
+    {
+      "sku": "THINNER-5",
+      "title": "Paint thinner 5L",
+      "price": "615.00",
+      "unit": "can",
+      "hsn": "38140010",
+      "gst_pct": 18,
+      "moq": 4
+    }
+  ]
+}
