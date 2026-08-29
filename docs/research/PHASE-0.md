@@ -18,6 +18,11 @@ lives in `D:\projs\hackathon\briefs\`.
 | UPI test VPAs `success@razorpay` / `failure@razorpay` | ✗ headless | These are consumed by **Checkout's** UPI-collect field, not by any bare REST endpoint. |
 | A mock / simulate endpoint in test mode | ✗ | None found in the docs. |
 
+**Confirmed live, 2026-08-30.** With real `rzp_test_` keys, `POST /v1/payments/create/json`
+returns **HTTP 400 / `BAD_REQUEST_ERROR` -- "The requested URL was not found on the server."**
+The endpoint is not merely undocumented for this account; it is not routed at all until
+Razorpay enables S2S for the merchant. Payment Link creation succeeded in the same run.
+
 **Consequence for the build:** the payment leg needs a browser to cross the last mile. See
 `DECISIONS.md` D-004 for the chosen route and the reasoning.
 
@@ -48,7 +53,7 @@ Sources:
 
 | API | Idempotency | Mechanism |
 |---|---|---|
-| Orders — create | partial | No header. The **`receipt` field acts as the idempotency key** — a second create reusing the same `receipt` is rejected. Better than expected; earlier notes said "none". |
+| Orders — create | **none** | No header, and **`receipt` is NOT an idempotency key** — see the correction below. |
 | Payment Links — create | **none** | Not documented at all. Self-dedupe required. |
 | Payouts — create | yes | `X-Payout-Idempotency` |
 | Instant Refunds | yes | `X-Refund-Idempotency` (min 10 chars) |
@@ -56,8 +61,24 @@ Sources:
 
 Concurrent duplicates while the first is in flight return **409 Conflict**.
 
-**Consequence:** Vendable still self-dedupes on `mandate_jti + cart_hash`, *and* uses that
-same digest as the Orders `receipt` so Razorpay enforces it server-side too. Belt and braces.
+### Correction, 2026-08-30, from a live run against test keys
+
+The doc-derived claim that Orders `receipt` behaves as an idempotency key **is wrong.**
+`scripts/spike_payment.py` posted the identical payload twice with the same `receipt` value:
+
+```
+[ok ] POST /orders: HTTP 200            -> order_TViA50UATBKB5w
+[ok ] POST /orders again, same receipt: HTTP 200   -> a DIFFERENT order id
+```
+
+Razorpay accepted both and minted two distinct orders. Whatever uniqueness `receipt` has is
+not enforced at create time on a test account.
+
+**Consequence:** self-dedupe on `mandate_jti + cart_hash` is not belt-and-braces, it is
+**the only thing standing between a retried request and a double charge.** That is precisely
+why `SpendLedger` puts a PRIMARY KEY on `(jti, cart_hash)` rather than trusting a remote
+guarantee. The `receipt` is still populated with the same digest, for reconciliation in the
+Razorpay dashboard — but nothing depends on it.
 
 Sources:
 - https://razorpay.com/docs/api/orders/create/

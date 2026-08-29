@@ -67,37 +67,52 @@ explicitly redirected to D: before first use.
 
 ---
 
-## D-004 — The payment leg needs a browser, and that is the honest finding
-**2026-08-30** · supersedes the Phase 0 plan's assumption that a headless path exists
+## D-004 — Headless payment: Payment Link -> netbanking -> mocksharp simulator
+**2026-08-30** · this entry was written twice, and the second version is the true one
 
-Spike A's research question was: can a Razorpay **test-mode** payment reach `captured` from a
-server-side script with no browser? **The answer is no, not on a default account.** Payment
-Links have no pay-by-API endpoint. The UPI test VPAs are consumed by Checkout, not by any REST
-call. S2S JSON v2 is the only true server-side path and Razorpay's own docs say it is
-"an on-demand feature — please raise a request with our Support team", so it is not available
-on a fresh test account inside a four-day window. (Full evidence: `docs/research/PHASE-0.md` §A.)
+**First conclusion (wrong):** research said no headless test payment exists, so the last mile
+needs a human or a scripted browser fighting a captcha. Recorded, then tested.
 
-**Chosen:** the buyer agent receives a Payment Link and a **headless Playwright driver
-completes the hosted page using the `success@razorpay` test VPA.** The payment is real, reaches
-`captured`, and fires a real webhook. `PLAYWRIGHT_BROWSERS_PATH` is redirected to D: per D-003.
+**What the live probe actually found.** Against real `rzp_test_` keys:
 
-**Rejected:**
-- *Waiting on S2S enablement* — an unbounded support-ticket dependency on the critical path.
-- *Mocking the payment* — the submission's whole claim is that the money action is real. A mock
-  would hollow it out.
-- *Handing the link to a human to click* — breaks the end-to-end autonomy the demo exists to show.
+- `POST /v1/payments/create/json` (S2S) returns **HTTP 400, "The requested URL was not found
+  on the server"** -- not routed at all until Razorpay enables it per merchant. Confirmed.
+- **UPI is disabled** on this account: `/v1/preferences` reports `upi: false`,
+  `upi_type: {collect: 0, intent: 0}`. The `success@razorpay` VPA is unreachable, so the
+  path every tutorial recommends does not exist here.
+- **Cards are a dead end for automation.** The flow hits an RBI save-card modal and then
+  **hCaptcha**, which is designed to stop exactly what we are doing. It also needs a 3DS OTP.
+- **Netbanking is enabled with 40 banks, and it is the way through.** Selecting a bank
+  redirects to `https://api.razorpay.com/v1/gateway/mocksharp/payment` -- Razorpay's own test
+  simulator, captioned *"This is just a demo bank page. You can choose whether to make this
+  payment successful or not: Success / Failure"*. Two buttons. **No captcha, no OTP.**
 
-**Say this out loud rather than hiding it.** The gap between "an agent decided to buy" and "the
-payment actually settled" is precisely the gap AP2 and agentic-commerce rails exist to close.
-Vendable's mandate, gate and audit chain cover the decision leg completely; the last mile still
-needs a browser because the rail has no agent-facing entry point yet. That is a finding about
-the state of the ecosystem, and it belongs in the README and the video.
+**Chosen:** create a Payment Link, drive the hosted page with headless Chromium -- contact ->
+Netbanking -> a bank -> **Success** on the mocksharp page.
 
-**Fallback if Playwright proves unreliable:** the MCP `create_purchase` tool returns the link
-and the mandate-gated authorisation record, and the video shows the click. Weaker, but the
-gate and audit story survives intact.
+Proven end to end with no human in the loop: link `plink_TViW6flmEw9j0t` reached
+`status: paid`, and `pay_TViWVsPZPJM6Xa` fetched back as **`captured`, ₹499.00, netbanking**.
 
----
+**Rejected:** S2S (not routed), UPI (disabled), cards (captcha), mocking the payment (the
+submission's claim is that the money action is real), handing a human the link (breaks the
+autonomy the demo exists to show).
+
+**What this is, said precisely, because overclaiming here would be the worst kind of lie.**
+The payment is a genuine Razorpay test-mode transaction: a real order, a real capture, a real
+webhook. The *authorisation* leg is fully autonomous and fully gated -- mandate verified, cap
+enforced, decision audited. The *settlement* leg still crosses a page built for a human
+thumb, and Vendable drives it with a browser because Razorpay exposes no agent-facing entry
+point for it. Choosing the Failure button instead is what produces the failure-path evidence
+in Phase 5, which is a genuine gift: the simulator makes a declined payment reproducible on
+demand.
+
+That gap -- between *an agent decided to buy* and *the money moved* -- is the thing AP2 and
+the agentic-payment rails exist to close. **This belongs in the README and the video, stated
+plainly rather than glossed.** It is a better answer to Track 1's "show one failure handled
+gracefully" than anything that could have been staged.
+
+**Kept from the first version:** `PLAYWRIGHT_BROWSERS_PATH` is redirected to D: per D-003.
+Chromium is 702 MB and C: has under 400 MB free.
 
 ## D-005 — The mandate travels as a tool argument, not an HTTP header
 **2026-08-30** · supersedes the plan's "mandate-as-bearer on purchase only"
