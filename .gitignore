@@ -1,0 +1,22 @@
+# secrets — never tracked
+.env
+*.key
+service-account*.json
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# local artefacts
+spike_output/
+evidence/raw/
+.vendable/
+*.db
+*.db-wal
+*.db-shm

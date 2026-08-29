@@ -1,0 +1,58 @@
+[project]
+name = "vendable"
+version = "0.1.0"
+description = "Make a merchant transactable by an AI buyer, end to end — with every money action explainable, bounded and gated."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Sirjan Singh" }]
+requires-python = ">=3.13"
+
+dependencies = [
+    # web + MCP
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "mcp>=1.2.0",
+    "httpx>=0.27.0",
+    # models + config
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.0",
+    # LLM
+    "google-genai>=0.3.0",
+    # payments
+    "razorpay>=1.4.2",
+    # mandate signing (AP2-shaped JWT)
+    "pyjwt[crypto]>=2.9.0",
+    # cli
+    "typer>=0.12.0",
+    "rich>=13.9.0",
+]
+
+[project.optional-dependencies]
+cloud = [
+    "google-cloud-firestore>=2.19.0",
+    "google-cloud-secret-manager>=2.20.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.7.0",
+]
+
+[project.scripts]
+vendable = "vendable.cli.main:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["vendable*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
