@@ -149,12 +149,14 @@ from mcp.server.streamable_http import TransportSecuritySettings
 
 mcp = MCPServer("vendable")
 
+
 @mcp.tool()
 def add(a: int, b: int) -> int:
     """Add two numbers."""
     return a + b
 
-app = mcp.streamable_http_app()   # Starlette ASGI app, MCP endpoint at /mcp
+
+app = mcp.streamable_http_app()  # Starlette ASGI app, MCP endpoint at /mcp
 ```
 Run with `uvicorn server:app --host 0.0.0.0 --port $PORT`. The SDK does **not** read Cloud
 Run's `PORT` itself.
