@@ -146,3 +146,48 @@ Pinned by `test_attacking_is_never_better_than_asking_politely`.
 floor hold" was the question I had written tests for; "does attacking pay better than asking"
 was the question that mattered, and it is not a property any single test run can show — it
 only appears when you compare outcomes across adversaries.
+
+---
+
+## 2026-08-30 · ...and then negotiating made you worse off than not negotiating
+
+Immediately after fixing the injection bounty, the same incoherence reappeared from the other
+side. Over MCP, on the same SKU and quantity:
+
+```
+just asking (request_quote) : ₹11.25  (10%)
+negotiating politely        : ₹12.00  ( 4%)   <- worse
+```
+
+The model works from **list price** and was conceding 4% of its 10% authority. Perfectly
+reasonable behaviour for a salesperson, and it made talking to the sales agent a mistake.
+
+**Fix:** the published entitlement is a *floor on the outcome*, not a starting point the model
+is allowed to walk back — `min(proposed, entitled)`. The clamp is one-directional: it lifts a
+bad outcome and never caps a good one.
+
+Verified live on genuinely aged stock, where there is discretionary allowance to win:
+
+```
+just asking   ₹34.20 (10%)
+negotiating   ₹33.44 (12%)  "…if you issue a firm PO for the next 600 now, I'll extend to 15%"
+negotiating   ₹33.06 (13%)
+attacking     ₹34.20 (10%)
+```
+
+**Both bugs were the same mistake wearing different clothes:** I had one notion of "the price"
+and three code paths deriving it independently. Splitting entitlement from discretionary
+authority gave the three paths a shared vocabulary, and the ordering they have to satisfy —
+*attacking ≤ asking ≤ negotiating* — became a property I could actually write a test for.
+
+---
+
+## 2026-08-30 · A client that only spoke JSON, against a server that sometimes speaks SSE
+
+`negotiate` was the first tool slow enough for the server to answer with
+`Content-Type: text/event-stream` instead of `application/json`. The probe client called
+`resp.json()` unconditionally and died on `Expecting value: line 1 column 1`.
+
+Both content types are valid under the spec. A client that handles only the first works
+perfectly until it meets a tool that takes long enough to matter — which is to say, it fails
+on exactly the tools worth calling. The probe now decodes either.

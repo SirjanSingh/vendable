@@ -43,7 +43,7 @@ class McpClient:
             headers=headers,
             json={"jsonrpc": "2.0", "id": 1, "method": method, "params": body_params},
         )
-        payload = resp.json()
+        payload = _decode(resp)
         if "error" in payload:
             raise RuntimeError(f"{method} -> {payload['error']}")
         return payload["result"]
@@ -68,6 +68,25 @@ class McpClient:
 
     def close(self) -> None:
         self._http.close()
+
+
+def _decode(resp: httpx.Response) -> dict[str, Any]:
+    """Accept either a JSON body or an SSE stream.
+
+    A server may answer a slow tool call with `text/event-stream` rather than
+    `application/json` -- both are valid under the spec, and a client that only handles the
+    first fails on exactly the tools that take long enough to matter. Found the hard way when
+    `negotiate` started making a real model call.
+    """
+    content_type = resp.headers.get("content-type", "")
+    if "text/event-stream" not in content_type:
+        return resp.json()
+    for line in resp.text.splitlines():
+        if line.startswith("data:"):
+            body = line[5:].strip()
+            if body:
+                return json.loads(body)
+    raise RuntimeError(f"SSE response carried no data frame: {resp.text[:200]}")
 
 
 class ToolRefused(RuntimeError):

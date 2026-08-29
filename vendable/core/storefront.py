@@ -73,6 +73,7 @@ class Storefront:
         commerce: CommerceMachine,
         gate: MandateGate,
         razorpay=None,  # RazorpayClient | None -- injected so tests need no credentials
+        completer=None,  # Completer | None -- absent means deterministic pricing only
     ) -> None:
         self.merchant_id = merchant_id
         self.catalog = catalog
@@ -82,6 +83,7 @@ class Storefront:
         self.commerce = commerce
         self.gate = gate
         self.razorpay = razorpay
+        self.completer = completer
 
     # -- discovery -----------------------------------------------------------------
 
@@ -208,6 +210,56 @@ class Storefront:
             },
         )
         return q, detail
+
+    def negotiate(self, product: Product, qty: int, message: str):
+        """Run one negotiation round-trip, and audit what happened.
+
+        Every proposal the model made -- including the rejected ones -- lands in the chain.
+        A negotiation log that only records the final price cannot answer "was the agent
+        talked into something", which is the question a merchant will actually ask.
+        """
+        from vendable.negotiate.agent import NegotiationAgent
+
+        agent = NegotiationAgent(self.engine, self.completer)
+        result = agent.negotiate(product, qty, message)
+
+        if result.injection is not None and not result.injection.is_clean:
+            self.audit.append(
+                "buyer",
+                Action.INJECTION_BLOCKED,
+                product.sku,
+                {
+                    "risk": result.injection.risk.value,
+                    "findings": [f.pattern for f in result.injection.findings],
+                    "summary": result.injection.summary(),
+                },
+            )
+
+        for turn in result.turns:
+            self.audit.append(
+                "sales-agent",
+                Action.NEGOTIATION_PROPOSED if turn.accepted else Action.NEGOTIATION_BLOCKED,
+                product.sku,
+                {
+                    "round": turn.round,
+                    "proposed_unit_paise": turn.proposed_unit_price_paise,
+                    "policy_reason": turn.policy_reason,
+                },
+            )
+
+        self.audit.append(
+            "merchant",
+            Action.NEGOTIATION_SETTLED,
+            product.sku,
+            {
+                "qty": qty,
+                "final_unit_paise": result.final_unit_price_paise,
+                "conceded_bp": result.conceded_bp,
+                "used_fallback": result.used_fallback,
+                "blocked_reason": result.blocked_reason,
+            },
+        )
+        return result
 
     # -- reservation ---------------------------------------------------------------
 
@@ -366,6 +418,7 @@ def build_storefront(
     policy: MerchantPolicy,
     public_pem: str,
     razorpay=None,
+    completer=None,
 ) -> Storefront:
     """Wire a storefront against one SQLite file.
 
@@ -381,6 +434,7 @@ def build_storefront(
         commerce=CommerceMachine(CommerceStore(db_path), merchant_id=merchant_id),
         gate=MandateGate(public_pem, merchant_id=merchant_id, ledger=SpendLedger(db_path)),
         razorpay=razorpay,
+        completer=completer,
     )
 
 

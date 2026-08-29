@@ -110,6 +110,20 @@ class PurchaseOut(BaseModel):
     next_step: str
 
 
+class NegotiationOut(BaseModel):
+    sku: str
+    qty: int
+    unit_price: str
+    unit_price_paise: int
+    list_price: str
+    discount_pct: float
+    message: str
+    """What the merchant's sales agent says. Always policy-validated before you see it."""
+    rounds_used: int
+    used_deterministic_fallback: bool
+    note: str = ""
+
+
 class PolicyOut(BaseModel):
     merchant_id: str
     currency: str
@@ -298,6 +312,47 @@ def build_server(storefront: Storefront) -> MCPServer:
             ),
         )
 
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, idempotentHint=False, openWorldHint=False
+        )
+    )
+    def negotiate(sku: str, qty: int, message: str) -> NegotiationOut:
+        """Negotiate the price of one line with the merchant's sales agent.
+
+        Give it a real reason — order size, a repeat relationship, stock that has clearly been
+        sitting. Reasons move the price; persistence does not, and neither does claiming an
+        approval, because every number the sales agent proposes is checked against rules it
+        cannot see or change before it is said to you.
+
+        The volume break your quantity earns is already in `request_quote`. What is available
+        here is the discretionary allowance on top of it.
+        """
+        try:
+            product = storefront.get(sku)
+        except StorefrontError as exc:
+            raise ValueError(str(exc)) from exc
+        if qty <= 0:
+            raise ValueError("qty must be a positive whole number.")
+
+        result = storefront.negotiate(product, qty, message)
+        return NegotiationOut(
+            sku=result.sku,
+            qty=result.qty,
+            unit_price=format_inr(result.final_unit_price_paise),
+            unit_price_paise=result.final_unit_price_paise,
+            list_price=format_inr(result.list_price_paise),
+            discount_pct=round(result.conceded_bp / 100, 2),
+            message=result.message,
+            rounds_used=result.rounds_used,
+            used_deterministic_fallback=result.used_fallback,
+            note=(
+                "This price is not held. Call request_quote to lock it into a quote."
+                if not result.blocked_reason
+                else result.blocked_reason
+            ),
+        )
+
     # -- buying --------------------------------------------------------------------
 
     @mcp.tool(
@@ -406,12 +461,22 @@ def default_storefront() -> Storefront:
 
         razorpay = RazorpayClient()
 
+    completer = None
+    if settings.llm_configured:
+        from vendable.negotiate.llm import LLMUnavailable, OpenAICompleter
+
+        try:
+            completer = OpenAICompleter()
+        except LLMUnavailable:
+            completer = None  # deterministic pricing still works; negotiation just falls back
+
     sf = build_storefront(
         merchant_id=merchant,
         db_path=db,
         policy=policy,
         public_pem=public_pem,
         razorpay=razorpay,
+        completer=completer,
     )
 
     if len(sf.catalog) == 0:

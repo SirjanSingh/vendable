@@ -279,3 +279,21 @@ def test_with_no_ageing_there_is_nothing_discretionary_to_win(engine, bolt):
     decision = engine.evaluate(bolt, ask(600))
     assert decision.discretionary_bp == 0
     assert decision.entitled_unit_price_paise == decision.best_unit_price_paise
+
+
+def test_negotiating_never_leaves_a_buyer_worse_off_than_asking(engine, bolt):
+    """A second live run made this concrete: a polite negotiation returned ₹12.00 while
+    request_quote returned ₹11.25. Talking to the sales agent was a mistake. The published
+    entitlement is a floor on the negotiated outcome, not a starting point to walk back."""
+    stingy = NegotiationAgent(engine, StubModel(offer(1)))  # model concedes almost nothing
+    result = stingy.negotiate(bolt, 600, "any movement on price?")
+    entitled = engine.evaluate(bolt, ask(600)).entitled_unit_price_paise
+    assert result.final_unit_price_paise <= entitled
+    assert result.conceded_bp >= 1000
+
+
+def test_a_generous_model_can_still_beat_the_entitlement(engine, bolt):
+    """The clamp is one-directional: it raises a bad outcome, never caps a good one."""
+    bolt.stock_age_days = 200
+    result = NegotiationAgent(engine, StubModel(offer(15))).negotiate(bolt, 600, "old stock?")
+    assert result.final_unit_price_paise == rupees("85")  # the full 15%

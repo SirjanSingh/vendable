@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from vendable.core.models import Product
-from vendable.core.money import BasisPoints, Paise, format_inr
+from vendable.core.money import BasisPoints, Paise, discount_bp, format_inr
 from vendable.firewall.fencing import Risk, ScanResult, fence, fenced_prompt_note, scan
 from vendable.policy.engine import LineRequest, PolicyDecision, PolicyEngine
 
@@ -216,15 +216,23 @@ class NegotiationAgent:
                 ),
             )
             if verdict.allowed:
+                # Negotiating must never leave a buyer worse off than simply asking for a
+                # quote. The model works from list price and can land above the published
+                # entitlement -- a second live run produced Rs 12.00 from a polite
+                # negotiation against Rs 11.25 from request_quote, which would have made
+                # talking to the sales agent a mistake. The entitlement is a floor on the
+                # outcome, not a starting point the model may walk back.
+                final_price = min(proposed_price, baseline.entitled_unit_price_paise)
+                final_bp = discount_bp(product.list_price_paise, final_price)
                 turns.append(
                     NegotiationTurn(attempt, proposed_price, True, "accepted", proposal["message"])
                 )
                 return NegotiationResult(
                     sku=product.sku,
                     qty=qty,
-                    final_unit_price_paise=proposed_price,
+                    final_unit_price_paise=final_price,
                     list_price_paise=product.list_price_paise,
-                    conceded_bp=concede_bp,
+                    conceded_bp=final_bp,
                     message=proposal["message"],
                     used_fallback=False,
                     turns=turns,
