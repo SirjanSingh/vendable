@@ -118,9 +118,27 @@ class PolicyDecision(BaseModel):
     offered_unit_price_paise: Paise | None = None
 
     max_discount_bp: BasisPoints = 0
-    """Discount authority actually available here, after ladders and the cap."""
+    """Total authority available here, after ladders and the cap."""
     granted_bp: BasisPoints = 0
     """Authority the ladders granted, before the cap was applied."""
+
+    entitled_bp: BasisPoints = 0
+    """The PUBLISHED entitlement -- the volume break this quantity earns.
+
+    Given automatically, without being asked for. `get_policies` publishes these thresholds,
+    so withholding one until a buyer haggles would make the published policy a lie.
+    """
+    entitled_unit_price_paise: Paise = 0
+    """List price minus the published entitlement, floored by margin. What a quote is issued at."""
+
+    discretionary_bp: BasisPoints = 0
+    """Authority a negotiation may concede ON TOP of the entitlement.
+
+    Currently the stock-ageing ladder: a genuine reason to move old stock, but one the
+    merchant would rather not hand out unprompted. This is what there is to negotiate for --
+    and it is why an agent that trips the injection detector gets the entitlement and nothing
+    more, rather than being rewarded with the maximum.
+    """
     rungs_applied: list[str] = Field(default_factory=list)
     resulting_margin_bp: BasisPoints = 0
 
@@ -227,6 +245,9 @@ class PolicyEngine:
         # combination from running away.
         granted_bp = vol_bp + age_bp
         max_discount_bp = min(granted_bp, p.max_total_discount_bp)
+        # The volume break is published, so it is owed. Ageing authority is discretionary.
+        entitled_bp = min(vol_bp, p.max_total_discount_bp)
+        discretionary_bp = max_discount_bp - entitled_bp
         rungs = vol_labels + age_labels
         if granted_bp > p.max_total_discount_bp:
             rungs.append(
@@ -247,9 +268,13 @@ class PolicyEngine:
 
         ladder_floor_price = list_price - (list_price * max_discount_bp) // BP_SCALE
         best_price = max(margin_floor_price, ladder_floor_price)
+        entitled_price = max(
+            margin_floor_price, list_price - (list_price * entitled_bp) // BP_SCALE
+        )
         # Never quote above list -- if the floor computes higher than list, the SKU is
         # mispriced and the gap validator has already flagged it.
         best_price = min(best_price, list_price) if list_price > 0 else best_price
+        entitled_price = min(entitled_price, list_price) if list_price > 0 else entitled_price
 
         # --- judge the offer, if one was made ---
 
@@ -300,6 +325,9 @@ class PolicyEngine:
             offered_unit_price_paise=offered,
             max_discount_bp=max_discount_bp,
             granted_bp=granted_bp,
+            entitled_bp=entitled_bp,
+            entitled_unit_price_paise=entitled_price,
+            discretionary_bp=discretionary_bp,
             rungs_applied=rungs,
             resulting_margin_bp=margin_bp(
                 offered if offered is not None else best_price, product.cost_price_paise

@@ -148,9 +148,14 @@ class Storefront:
     ) -> tuple[Quote, list[QuoteLine]]:
         """Price a basket at the best price policy allows, and open a quote.
 
-        A quote is issued at the **best legal price**, not at list. A buyer that qualifies
-        for a volume break gets it without having to ask -- making an agent haggle for a
-        discount it already earned is how human sales works, not how this should.
+        A quote is issued at the **published entitlement** -- list price minus whatever
+        volume break the quantity earns. A buyer gets that without having to ask, because
+        `get_policies` publishes the thresholds and withholding one until someone haggles
+        would make the published policy a lie.
+
+        It is deliberately *not* issued at the absolute floor. The remaining authority (the
+        stock-ageing allowance) is discretionary, and negotiating for it is the only thing
+        `negotiate` is for. Handing it out unprompted would make negotiation theatre.
         """
         if not items:
             raise StorefrontError("Ask for at least one SKU and quantity.")
@@ -169,15 +174,15 @@ class Storefront:
                 refusals.append(decision.explanation)
                 continue
             lines.append(
-                CartLine(sku=sku, qty=qty, unit_price_paise=decision.best_unit_price_paise)
+                CartLine(sku=sku, qty=qty, unit_price_paise=decision.entitled_unit_price_paise)
             )
             detail.append(
                 QuoteLine(
                     sku=sku,
                     qty=qty,
-                    unit_price_paise=decision.best_unit_price_paise,
+                    unit_price_paise=decision.entitled_unit_price_paise,
                     list_price_paise=decision.list_unit_price_paise,
-                    discount_bp=decision.max_discount_bp,
+                    discount_bp=decision.entitled_bp,
                     explanation=decision.explanation,
                 )
             )

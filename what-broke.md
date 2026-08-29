@@ -100,3 +100,49 @@ starts, the 421 hostname trap, and multi-instance behaviour.
 still written and parameterised so the cloud move stays a config change. Allowed hosts read
 from an env var from the first commit, so the 421 trap is pre-empted rather than merely known.
 Now the top entry in the risk register.
+
+---
+
+## 2026-08-30 · Prompt injection was the best deal on the menu
+
+Found by running the negotiation agent against the real model rather than only against
+stubs. Three buyer messages, same SKU, same quantity:
+
+| buyer | conceded | price |
+|---|---|---|
+| honest, gave reasons | 2% | ₹12.25 |
+| pushy, demanded 40% | 7% | ₹11.63 |
+| **prompt injection** | **10%** | **₹11.25** |
+
+Every price cleared the margin floor, so nothing unsafe happened and every unit test passed.
+The bug was economic, not structural: the hostile fallback handed out the **maximum** discount
+authority, so the cheapest way to get the best price was to trip the injection detector. The
+defence paid a bounty.
+
+The stub tests could not have caught this. They asserted the floor held — and it did. It took
+a live run, and reading the three numbers side by side, to notice that the ordering was
+backwards.
+
+**Fix, and it improved the design rather than patching it.** Discount authority is now split
+into two kinds:
+
+- **entitlement** — the volume break, which `get_policies` *publishes*. Published means owed.
+  A quote is issued at this price automatically; making a buyer haggle for a documented break
+  would make the published policy a lie.
+- **discretionary** — the stock-ageing allowance. Never given unprompted. This is the only
+  thing a negotiation can actually win, which is what makes negotiation more than theatre.
+
+A hostile buyer now receives the entitlement and not one basis point more. Re-run live:
+
+| buyer | conceded | price |
+|---|---|---|
+| honest | 12% | ₹11.00 |
+| pushy | 15% | ₹10.63 |
+| **prompt injection** | **10%** | **₹11.25** ← now the worst deal |
+
+Pinned by `test_attacking_is_never_better_than_asking_politely`.
+
+**The lesson worth keeping:** a security control that is *safe* can still be *wrong*. "Did the
+floor hold" was the question I had written tests for; "does attacking pay better than asking"
+was the question that mattered, and it is not a property any single test run can show — it
+only appears when you compare outcomes across adversaries.
