@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 from pathlib import Path
 
+from vendable.core.db import close as db_close
+from vendable.core.db import connect
 from vendable.core.models import Availability, Product
 
 _SCHEMA = """
@@ -73,12 +74,7 @@ class Catalog:
     def __init__(self, db_path: Path | str = ":memory:", *, merchant_id: str = "") -> None:
         self.db_path = str(db_path)
         self.merchant_id = merchant_id
-        if self.db_path != ":memory:":
-            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        if self.db_path != ":memory:":
-            self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn = connect(self.db_path)
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 
@@ -165,7 +161,12 @@ class Catalog:
         return results[:limit]
 
     def close(self) -> None:
-        self._conn.close()
+        """Release this store's handle.
+
+        A shared connection is only really closed when the pool drops it, because sibling
+        stores on the same file are still using it.
+        """
+        db_close(self.db_path)
 
 
 def load_seed(path: Path | str) -> list[Product]:

@@ -493,8 +493,13 @@ app = None  # populated on import by __main__ below, or by the CLI
 if __name__ == "__main__":
     import uvicorn
 
+    from vendable.mcp.app import build
+
     sf = default_storefront()
-    print(f"vendable mcp: {len(sf.catalog)} SKUs, merchant {sf.merchant_id}")
     port = int(os.environ.get("PORT", "8080"))
-    print(f"listening on http://localhost:{port}/mcp")
-    uvicorn.run(build_app(sf), host="0.0.0.0", port=port, log_level="info")
+    print(f"vendable: {len(sf.catalog)} SKUs, merchant {sf.merchant_id}")
+    print(f"  mcp        http://localhost:{port}/mcp")
+    print(f"  discovery  http://localhost:{port}/.well-known/vendable.json")
+    print(f"  llms.txt   http://localhost:{port}/llms.txt")
+    print(f"  webhook    http://localhost:{port}/webhooks/razorpay")
+    uvicorn.run(build(sf), host="0.0.0.0", port=port, log_level="warning")

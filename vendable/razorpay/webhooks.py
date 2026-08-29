@@ -32,6 +32,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from vendable.core.db import close as db_close
+from vendable.core.db import connect
+
 SIGNATURE_HEADER = "X-Razorpay-Signature"
 EVENT_ID_HEADER = "X-Razorpay-Event-Id"
 
@@ -101,11 +104,7 @@ class SeenEvents:
 
     def __init__(self, db_path: Path | str = ":memory:") -> None:
         self.db_path = str(db_path)
-        if self.db_path != ":memory:":
-            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        if self.db_path != ":memory:":
-            self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn = connect(self.db_path)
         self._conn.executescript(_SEEN_SCHEMA)
         self._conn.commit()
 
@@ -128,7 +127,12 @@ class SeenEvents:
         return row is not None
 
     def close(self) -> None:
-        self._conn.close()
+        """Release this store's handle.
+
+        A shared connection is only really closed when the pool drops it, because sibling
+        stores on the same file are still using it.
+        """
+        db_close(self.db_path)
 
 
 def parse_delivery(

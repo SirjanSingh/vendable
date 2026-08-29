@@ -225,3 +225,46 @@ are genuinely different instruments, and this is the argument for building both:
 
 Fixed, pinned by `test_a_cart_in_a_currency_the_merchant_cannot_settle_is_refused`, and the
 matrix is now 62/62 with zero false accepts.
+
+---
+
+## 2026-08-30 · A 400 that arrived as a 500, because SQLite was locked
+
+Testing the webhook receiver with a deliberately wrong secret:
+
+```
+wrong secret : (500, 'Internal Server Error')
+```
+
+It should have been a 400 — and the handler had already *computed* the 400 correctly. It
+died on the next line, writing the rejection to the audit chain:
+
+```
+File "vendable/audit/chain.py", line 164, in append
+sqlite3.OperationalError: database is locked
+```
+
+Five components keep their own connection to the same SQLite file: catalog, audit chain,
+spend ledger, commerce store, webhook de-duplicator. That separation is deliberate — each
+owns its schema and none reaches into another's tables — but it makes concurrent writers
+normal rather than exceptional, and the default `sqlite3.connect` settings are wrong for
+that.
+
+**First fix, which was not enough.** WAL plus a 15-second `busy_timeout`. It made the error
+rarer and left it there: an unsubscribed event still 500'd, because `SeenEvents` committed an
+insert and the audit chain's write on the very next line still collided.
+
+**Second fix, which actually removes the problem.** One shared connection per database file.
+Python's sqlite3 reports `threadsafety == 3` (serialized), so a single connection is safe
+across threads and the driver queues statements instead of letting them collide. Writers wait
+their turn rather than racing for a file lock.
+
+Worth noticing which fix is which: the first made a race less likely, the second made it
+impossible. Given a choice between tuning a retry and removing the contention, remove the
+contention.
+
+**The part that nearly hid this.** The bug was in the *error* path, so the happy path was
+green throughout and the tests all passed — `parse_delivery` is unit-tested thoroughly and
+never touches a database. It only appeared because the manual probe checked what a *rejected*
+webhook returns, not just an accepted one. Error paths need exercising with the same care as
+success paths, and mine had a database write in it.
