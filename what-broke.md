@@ -322,3 +322,47 @@ even the one pinning the behaviour.
 reproducibility in its own first paragraph. A judge who ran it twice would have caught the
 project contradicting itself. The number being *nearly* always right is exactly the property
 this repo argues against everywhere else.
+
+---
+
+## The engine approved a sale at minus 11.79% margin
+
+**2026-08-30.**
+
+A property sweep across both merchants — every SKU, quantities straddling every ladder
+threshold, every payment-terms window — found `PIPE-GI-40` quoting at **-11.79% margin
+against a 15% floor**. About ₹230 lost per unit, ₹2,300 on a ten-unit order. `allowed=True`,
+`violations=[]`, explanation reading `Approved`.
+
+The SKU has a list price of ₹1,950 against a cost of ₹2,180. That defect was *planted* in the
+seed catalog on purpose — `source_ref` says "cost entered per case, price per unit, so it
+sells at a loss" — and `validate_product` correctly returns a **blocking** gap for it. The
+gap report has been right the whole time. `vendable review` has been printing it.
+
+Nothing connected the report to the sales path.
+
+The engine computed a margin floor above list price and then did this:
+
+```python
+# Never quote above list -- if the floor computes higher than list, the SKU is
+# mispriced and the gap validator has already flagged it.
+best_price = min(best_price, list_price)
+```
+
+The comment is the bug. "Has already flagged it" was true and irrelevant: flagging happens in
+a report a merchant reads, and the clamp then sold the thing anyway. I wrote that line
+believing the validator was a gate. It was a printer.
+
+**Fixed:** a hard `LIST_BELOW_FLOOR` gate that no quantity, term or discount reaches past. The
+refusal is addressed to the merchant rather than the buyer, because nothing the buyer does can
+fix it — it names the per-unit loss and the price the SKU must be repriced to.
+
+**How it was found matters more than the bug.** Not by a hand-written attack — the red team
+has 47 of those and every one passed. By enumerating properties and counting. That is the
+second time in this repo that counting beat attacking; the currency false accept was the
+first. Both times the attack suite was looking where I already suspected trouble, and the
+sweep looked everywhere.
+
+The sweep now runs 5,292 evaluations across seven invariants with zero violations, and the
+one guarding the ₹12.00-vs-₹11.25 regression holds in all 5,292 — previously that fix was
+guarded only by a comment.
