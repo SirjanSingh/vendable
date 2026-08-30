@@ -272,10 +272,18 @@ class AuditChain:
         return row["this_hash"] if row else GENESIS_HASH
 
     def close(self) -> None:
-        """Release this store's handle.
+        """Close the connection for this database file -- **for every store sharing it**.
 
-        A shared connection is only really closed when the pool drops it, because sibling
-        stores on the same file are still using it.
+        Read that again before calling this inside a running server. `vendable.core.db`
+        keeps one connection per path on purpose (see its module docstring), so closing
+        "this" chain also closes the catalog's, the spend ledger's, the commerce store's and
+        the webhook de-duplicator's. The next query any of them makes raises
+        `sqlite3.ProgrammingError: Cannot operate on a closed database`.
+
+        This is for a process that is finishing, and for tests. Long-lived code should hold
+        one chain and never close it. An earlier version of this docstring claimed sibling
+        stores kept the connection alive; they do not, and the merchant console took its own
+        server down on first page load believing it.
         """
         db_close(self.db_path)
 

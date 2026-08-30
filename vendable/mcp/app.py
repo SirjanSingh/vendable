@@ -13,6 +13,8 @@ Routes:
     /llms.txt                     the summary an agent reads before deciding to bother
     /healthz                      liveness, plus an audit-chain integrity check
     /webhooks/razorpay            Razorpay deliveries (also accepted at /)
+    /console                      the merchant's own view (local only, see Settings)
+    /api/console/*                the JSON behind it
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
 
 from vendable.audit.chain import Action
+from vendable.console import routes as console_routes
 from vendable.core.settings import settings
 from vendable.core.storefront import Storefront
 from vendable.mcp.server import build_app as build_mcp_app
@@ -168,6 +171,11 @@ def build(storefront: Storefront) -> Starlette:
         Route("/webhooks/razorpay", webhook_route, methods=["POST"]),
         # The dashboard webhook was configured against the bare domain, so accept there too.
         Route("/", webhook_route, methods=["POST"]),
+        # The merchant's own view. Empty unless the console is enabled -- it shows cost
+        # prices and the agent's spending authority, so it is local-only by default.
+        # It goes BEFORE the mount: `Mount("", ...)` matches every path, so anything
+        # after it is unreachable.
+        *console_routes(storefront),
         Mount("", app=mcp_app),
     ]
     # The MCP app owns a task group that is created in its lifespan. Mounting an ASGI app

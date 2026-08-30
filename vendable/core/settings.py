@@ -50,6 +50,19 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
 
+    # --- merchant console ---
+    vendable_console: str = "auto"
+    """Whether to mount the merchant console at /console: "auto", "on" or "off".
+
+    "auto" means on for `VENDABLE_ENV=local` and off everywhere else, and that default is
+    the conservative one on purpose. The console is the *merchant's* view: it shows cost
+    prices, the margin floor, and the discretionary authority the sales agent is allowed to
+    spend. SECURITY.md H1/H2 already record that a buyer who learns the floor can
+    binary-search it; the console would hand it over in one page. So it is unauthenticated
+    and localhost-only by default, and turning it on in a deployment is a deliberate act
+    that has to be paired with an authenticating proxy in front of it.
+    """
+
     # --- LLM (OpenAI) ---
     openai_api_key: str = ""
     openai_model: str = "gpt-5"
@@ -77,6 +90,15 @@ class Settings(BaseSettings):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(private_pem, encoding="utf-8")
         return private_pem
+
+    @property
+    def console_enabled(self) -> bool:
+        choice = self.vendable_console.strip().lower()
+        if choice in ("on", "true", "1", "yes"):
+            return True
+        if choice in ("off", "false", "0", "no"):
+            return False
+        return self.vendable_env == "local"
 
     @property
     def llm_configured(self) -> bool:
