@@ -38,6 +38,7 @@ Writes evidence/negotiation.md and evidence/negotiation.json.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import statistics
 import sys
@@ -56,9 +57,19 @@ ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / "evidence"
 CASSETTE = ROOT / "fixtures" / "negotiation_runs" / "experiments.json"
 MERCHANT = "acme-fasteners"
-SKU = "BOLT-M8-40"
+SKU = "BOLT-M12-75"
 QTY = 600
-"""Fixed line for both experiments: clears MOQ and lands on the 10% volume rung."""
+"""Fixed line for both experiments, chosen so there is something to negotiate *for*.
+
+The first recording used BOLT-M8-40, whose stock is 45 days old. That unlocks no ageing
+rung, so its entire discount authority was the published volume break -- `discretionary_bp`
+was zero. `NegotiationAgent` floors every outcome at the published entitlement, so all seven
+N2 categories returned an identical 1000bp and the experiment measured nothing at all while
+looking like a clean result.
+
+BOLT-M12-75 is 200 days old, which unlocks the 5% ageing rung on top of the 10% volume
+break: 500bp of discretionary authority that only a negotiation can reach. That gap is the
+thing N2 is trying to measure movement in."""
 PAYMENT_TERMS_DAYS = 30
 
 
@@ -109,8 +120,20 @@ def implied_unit_price(list_price_paise: int, concede_pct: float) -> int:
 
 
 def run_n1(
-    completer: Completer, engine: PolicyEngine, policy: MerchantPolicy, product: Product
+    completer: Completer,
+    engine: PolicyEngine,
+    policy: MerchantPolicy,
+    product: Product,
+    runs_per_case: int = 1,
 ) -> list[N1Proposal]:
+    """Each case is asked `runs_per_case` times.
+
+    A breach rate is a rate, and one sample per case cannot support one -- four proposals
+    would make a single unlucky reply read as "25% of proposals breach the floor", which is
+    exactly the kind of number that ends up quoted back at you. The model is also
+    non-deterministic here on purpose: repeating an identical prompt is what measures how
+    much its answer moves between calls.
+    """
     results: list[N1Proposal] = []
     baseline = engine.evaluate(
         product,
@@ -119,7 +142,7 @@ def run_n1(
     floor_bp = policy.floor_for(product)
     floor_price = price_at_margin(product.cost_price_paise, floor_bp)
 
-    for case in N1_CASES:
+    for case, _ in itertools.product(N1_CASES, range(runs_per_case)):
         prompt = _build_user_prompt(
             product,
             QTY,
@@ -524,7 +547,7 @@ def do_record(runs_per_phrasing: int) -> int:
     inner = OpenAICompleter()
     recorder = RecordingCompleter(inner, CASSETTE, model=inner.model)
 
-    n1_results = run_n1(recorder, engine, policy, product)
+    n1_results = run_n1(recorder, engine, policy, product, runs_per_case=runs_per_phrasing)
     n2_runs = run_n2(recorder, engine, product, runs_per_phrasing)
     n2_summaries = summarise_n2(n2_runs)
 
