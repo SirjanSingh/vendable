@@ -64,6 +64,9 @@ class Cart(BaseModel):
     merchant_id: str
     currency: str = "INR"
     lines: list[CartLine] = Field(default_factory=list)
+    payment_terms_days: int = 30
+    """How long the buyer has to pay. Part of the deal, so part of the hash -- an early-
+    payment discount granted on a promise that binds nothing is not a control."""
 
     @property
     def total_paise(self) -> Paise:
@@ -80,6 +83,7 @@ class Cart(BaseModel):
             {
                 "merchant_id": self.merchant_id,
                 "currency": self.currency,
+                "payment_terms_days": self.payment_terms_days,
                 "lines": sorted(
                     [
                         {"sku": ln.sku, "qty": ln.qty, "unit": ln.unit_price_paise}

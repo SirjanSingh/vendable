@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from vendable.core.models import Product
 from vendable.core.money import (
@@ -43,6 +43,10 @@ class ViolationCode(str, enum.Enum):
     TERRITORY_NOT_ALLOWED = "territory_not_allowed"
     NOT_SELLABLE = "not_sellable"
     NO_COST_BASIS = "no_cost_basis"
+    CREDIT_TERMS_EXCEEDED = "credit_terms_exceeded"
+    """The merchant's own commercial ceiling on how long it will wait to be paid."""
+    MSMED_LIMIT_EXCEEDED = "msmed_limit_exceeded"
+    """Statutory. See `MerchantPolicy.statutory_max_credit_days`."""
 
 
 class Violation(BaseModel):
@@ -62,6 +66,45 @@ class LadderRung(BaseModel):
     label: str = ""
 
 
+class TermsRung(BaseModel):
+    """A payment window and what paying inside it earns.
+
+    `2/10 Net 30` -- two percent off for paying inside ten days -- is written as two rungs:
+    `within_days=10, grants_bp=200` and `within_days=30, grants_bp=0`.
+
+    Note this reads in the opposite direction to `LadderRung`. A volume rung is earned by
+    *clearing* a threshold; a terms rung is earned by falling *inside* a window. Paying
+    sooner can therefore never be worth less than paying later, which is the invariant a
+    buyer's agent will assume and the one it would be embarrassing to get wrong.
+    """
+
+    within_days: int
+    grants_bp: BasisPoints
+    label: str = ""
+
+
+class EnterpriseClass(str, enum.Enum):
+    """Udyam classification. Only micro and small carry the s.15 payment protection."""
+
+    MICRO = "micro"
+    SMALL = "small"
+    MEDIUM = "medium"
+    UNREGISTERED = "unregistered"
+
+
+class UdyamActivity(str, enum.Enum):
+    """What the enterprise is registered as doing.
+
+    Traders are registered under Udyam for lending purposes but sit outside s.43B(h), which
+    reaches manufacturers and service providers. The exclusion matters as much as the rule:
+    a guard that fired on every Indian merchant would refuse business the law permits.
+    """
+
+    MANUFACTURER = "manufacturer"
+    SERVICE = "service"
+    TRADER = "trader"
+
+
 class MerchantPolicy(BaseModel):
     """Everything the merchant is willing to trade away, declared up front.
 
@@ -69,6 +112,10 @@ class MerchantPolicy(BaseModel):
     merchant confirms the compiled result before it goes live. An LLM writes this structure;
     it never gets to *be* this structure at negotiation time.
     """
+
+    model_config = ConfigDict(extra="forbid")
+    """Unknown fields are an error, not noise. `margin_floor_bps` is not `margin_floor_bp`,
+    and a policy that silently ignored the typo would run on a default floor nobody chose."""
 
     merchant_id: str
 
@@ -90,8 +137,53 @@ class MerchantPolicy(BaseModel):
     allowed_territories: list[str] = Field(default_factory=list)
     """Empty means sell anywhere. Otherwise an allowlist."""
 
+    # --- payment terms ---
+    #
+    # In Indian B2B the rate and the credit period are one negotiation, not two. A policy
+    # that models only the rate is modelling half the deal.
+
+    payment_terms_ladder: list[TermsRung] = Field(default_factory=list)
+    """Payment windows -> discount authority. Empty means terms move no price."""
+
+    default_payment_terms_days: int = 30
+    """Assumed when a buyer states no terms, so a quote is never silently unpriced."""
+
+    max_credit_days: int = 60
+    """The merchant's own commercial ceiling. Inclusive."""
+
+    # --- MSMED Act exposure ---
+
+    udyam_registered: bool = False
+    enterprise_class: EnterpriseClass = EnterpriseClass.UNREGISTERED
+    udyam_activity: UdyamActivity = UdyamActivity.TRADER
+    written_agreement: bool = True
+    """Whether a written supply agreement exists, which is what separates s.15's 45-day
+    outer limit from the 15-day default."""
+
     def floor_for(self, product: Product) -> BasisPoints:
         return self.category_margin_floor_bp.get(product.category, self.margin_floor_bp)
+
+    def statutory_max_credit_days(self) -> int | None:
+        """The MSMED Act s.15 limit on this merchant's credit terms, or None if unbound.
+
+        The whole statute, as a pure function, in the order the exclusions apply:
+
+        - protection follows Udyam registration, not size alone
+        - it covers micro and small enterprises; medium is excluded
+        - s.43B(h) reaches manufacturers and service providers; traders are excluded
+        - with a written agreement the outer limit is 45 days, without one it is 15
+
+        Returning None rather than a large number is deliberate. "Unconstrained" and
+        "constrained at some high figure" are different facts, and a buyer's agent reading
+        `statutory_max_credit_days` off a decision should be able to tell them apart.
+        """
+        if not self.udyam_registered:
+            return None
+        if self.enterprise_class not in (EnterpriseClass.MICRO, EnterpriseClass.SMALL):
+            return None
+        if self.udyam_activity is UdyamActivity.TRADER:
+            return None
+        return 45 if self.written_agreement else 15
 
 
 class LineRequest(BaseModel):
@@ -102,6 +194,8 @@ class LineRequest(BaseModel):
     offered_unit_price_paise: Paise | None = None
     """What the buyer (or our own sales agent) wants the price to be. None = just asking."""
     territory: str = ""
+    payment_terms_days: int | None = None
+    """How long the buyer wants to take to pay. None = the merchant's declared default."""
 
 
 class PolicyDecision(BaseModel):
@@ -139,6 +233,15 @@ class PolicyDecision(BaseModel):
     and it is why an agent that trips the injection detector gets the entitlement and nothing
     more, rather than being rewarded with the maximum.
     """
+    payment_terms_days: int = 0
+    """The terms this decision was priced on -- the buyer's, or the merchant's default."""
+    payment_terms_bp: BasisPoints = 0
+    """Authority the payment-terms ladder granted. Entitled, not discretionary: the ladder
+    is published, so paying early earns it without anyone having to ask."""
+    statutory_max_credit_days: int | None = None
+    """The MSMED s.15 limit in force, or None where the merchant is outside the Act.
+    Reported on every decision so a buyer can read it off an approval, not only a refusal."""
+
     rungs_applied: list[str] = Field(default_factory=list)
     resulting_margin_bp: BasisPoints = 0
 
@@ -169,6 +272,20 @@ class PolicyEngine:
             if value >= rung.threshold and rung.grants_bp > best:
                 best = rung.grants_bp
                 labels = [rung.label or f"threshold {rung.threshold} -> {rung.grants_bp}bp"]
+        return best, labels
+
+    def _grant_terms(self, ladder: list[TermsRung], days: int) -> tuple[BasisPoints, list[str]]:
+        """Best rung whose window `days` falls *inside*. The inverse of `_grant`.
+
+        Written as a max over every qualifying window rather than the narrowest one so that
+        paying sooner is never worth less than paying later, whatever order a merchant
+        happens to declare the rungs in.
+        """
+        best, labels = 0, []
+        for rung in sorted(ladder, key=lambda r: r.within_days):
+            if days <= rung.within_days and rung.grants_bp > best:
+                best = rung.grants_bp
+                labels = [rung.label or f"within {rung.within_days}d -> {rung.grants_bp}bp"]
         return best, labels
 
     # -- the ruling ----------------------------------------------------------------
@@ -235,20 +352,69 @@ class PolicyEngine:
                 )
             )
 
+        # --- payment terms ---
+        #
+        # Both of these are gates rather than price adjustments: no order size and no
+        # offered price rescues them. The statutory one is checked first because it is not
+        # the merchant's to waive.
+
+        terms_days = (
+            req.payment_terms_days
+            if req.payment_terms_days is not None
+            else p.default_payment_terms_days
+        )
+        statutory_days = p.statutory_max_credit_days()
+
+        if statutory_days is not None and terms_days > statutory_days:
+            basis = (
+                f"a written agreement caps the period at {statutory_days} days"
+                if p.written_agreement
+                else f"with no written supply agreement the period is {statutory_days} days"
+            )
+            violations.append(
+                Violation(
+                    code=ViolationCode.MSMED_LIMIT_EXCEEDED,
+                    message=(
+                        f"Net {terms_days} cannot be agreed. This supplier is a Udyam-"
+                        f"registered {p.enterprise_class.value} "
+                        f"{p.udyam_activity.value}, so under s.15 of the MSMED Act "
+                        f"{basis}. Paying later obliges the buyer to compound interest at "
+                        "three times the RBI bank rate under s.16, and defers the buyer's "
+                        "own deduction on the expense under s.43B(h) until it is actually "
+                        f"paid. Ask for Net {statutory_days} or shorter."
+                    ),
+                )
+            )
+        # Not an `elif`: a merchant may be more conservative than the statute, and a buyer
+        # that fixes only the reason it was told about would just be refused again.
+        if terms_days > p.max_credit_days:
+            violations.append(
+                Violation(
+                    code=ViolationCode.CREDIT_TERMS_EXCEEDED,
+                    message=(
+                        f"Net {terms_days} is beyond this merchant's ceiling of "
+                        f"Net {p.max_credit_days}. Ask for Net {p.max_credit_days} or "
+                        "shorter, or pay sooner for a better rate."
+                    ),
+                )
+            )
+
         # --- discount authority ---
 
         vol_bp, vol_labels = self._grant(p.volume_ladder, req.qty)
         age_bp, age_labels = self._grant(p.age_ladder, product.stock_age_days)
+        terms_bp, terms_labels = self._grant_terms(p.payment_terms_ladder, terms_days)
 
         # Ladders from *different* dimensions do stack -- volume and ageing are independent
         # reasons to concede -- but `max_total_discount_bp` is the backstop that stops any
         # combination from running away.
-        granted_bp = vol_bp + age_bp
+        granted_bp = vol_bp + age_bp + terms_bp
         max_discount_bp = min(granted_bp, p.max_total_discount_bp)
-        # The volume break is published, so it is owed. Ageing authority is discretionary.
-        entitled_bp = min(vol_bp, p.max_total_discount_bp)
+        # The volume break and the terms rung are both published, so both are owed without
+        # being asked for. Ageing authority is the only thing a negotiation can unlock.
+        entitled_bp = min(vol_bp + terms_bp, p.max_total_discount_bp)
         discretionary_bp = max_discount_bp - entitled_bp
-        rungs = vol_labels + age_labels
+        rungs = vol_labels + age_labels + terms_labels
         if granted_bp > p.max_total_discount_bp:
             rungs.append(
                 f"capped at {p.max_total_discount_bp}bp by max_total_discount "
@@ -328,6 +494,9 @@ class PolicyEngine:
             entitled_bp=entitled_bp,
             entitled_unit_price_paise=entitled_price,
             discretionary_bp=discretionary_bp,
+            payment_terms_days=terms_days,
+            payment_terms_bp=terms_bp,
+            statutory_max_credit_days=statutory_days,
             rungs_applied=rungs,
             resulting_margin_bp=margin_bp(
                 offered if offered is not None else best_price, product.cost_price_paise
@@ -349,7 +518,7 @@ class PolicyEngine:
             head = (
                 f"Approved: {d.qty} x {d.sku} at {format_inr(d.best_unit_price_paise)} "
                 f"(list {format_inr(d.list_unit_price_paise)}, "
-                f"{d.max_discount_bp / 100:.2f}% authorised)."
+                f"{d.max_discount_bp / 100:.2f}% authorised) on Net {d.payment_terms_days}."
             )
         else:
             head = f"Refused: {d.qty} x {d.sku}. " + " ".join(v.message for v in d.violations)
@@ -359,11 +528,14 @@ class PolicyEngine:
 
 
 __all__ = [
+    "EnterpriseClass",
     "LadderRung",
     "LineRequest",
     "MerchantPolicy",
     "PolicyDecision",
     "PolicyEngine",
+    "TermsRung",
+    "UdyamActivity",
     "Violation",
     "ViolationCode",
 ]

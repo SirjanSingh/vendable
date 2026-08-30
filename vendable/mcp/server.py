@@ -86,6 +86,9 @@ class QuoteOut(BaseModel):
     """Fingerprint of exactly what was quoted. The capture step refuses if this changes."""
     state: str
     next_step: str
+    payment_terms_days: int = 30
+    """The credit period this quote was priced on. It is inside `cart_hash`, so changing
+    your mind about it means asking for a new quote rather than simply paying later."""
     refused_lines: list[str] = Field(default_factory=list)
 
 
@@ -121,6 +124,7 @@ class NegotiationOut(BaseModel):
     """What the merchant's sales agent says. Always policy-validated before you see it."""
     rounds_used: int
     used_deterministic_fallback: bool
+    payment_terms_days: int = 30
     note: str = ""
 
 
@@ -131,6 +135,10 @@ class PolicyOut(BaseModel):
     max_discount_pct: float
     volume_breaks: list[dict]
     clearance_policy: list[dict]
+    payment_terms: dict
+    """Default terms, the merchant's credit ceiling, the early-payment ladder, and -- where
+    the supplier is a Udyam-registered micro or small manufacturer -- the MSMED s.15 limit
+    on how long payment can be deferred at all."""
     territories: list[str]
     note: str
 
@@ -230,7 +238,9 @@ def build_server(storefront: Storefront) -> MCPServer:
             readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False
         )
     )
-    def request_quote(items: list[dict], territory: str = "") -> QuoteOut:
+    def request_quote(
+        items: list[dict], territory: str = "", payment_terms_days: int | None = None
+    ) -> QuoteOut:
         """Price a basket and open a quote.
 
         `items` is a list of `{"sku": "BOLT-M8-40", "qty": 500}`. The quote is priced at the
@@ -238,6 +248,15 @@ def build_server(storefront: Storefront) -> MCPServer:
         window, and holds no stock — call `reserve_stock` for that.
 
         `territory` is an optional region code such as IN-KA; some SKUs are restricted.
+
+        `payment_terms_days` is how long you want to take to pay, and it moves the price:
+        paying sooner earns a published discount, exactly like a volume break. Call
+        `get_policies` for the ladder and for this merchant's ceiling. Two things to know
+        before you optimise on it. The terms are part of the quote's `cart_hash`, so you
+        cannot take the early-payment rate and then pay late — that is a new quote. And some
+        Indian suppliers are legally barred from granting long credit at all: where the
+        merchant is a Udyam-registered micro or small manufacturer, s.15 of the MSMED Act
+        caps the period, and asking beyond it is refused rather than priced.
         """
         parsed: list[tuple[str, int]] = []
         for item in items:
@@ -256,7 +275,9 @@ def build_server(storefront: Storefront) -> MCPServer:
             parsed.append((sku, qty))
 
         try:
-            quote, detail = storefront.quote(parsed, territory=territory)
+            quote, detail = storefront.quote(
+                parsed, territory=territory, payment_terms_days=payment_terms_days
+            )
         except StorefrontError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -280,6 +301,7 @@ def build_server(storefront: Storefront) -> MCPServer:
             expires_at_epoch_s=quote.expires_at_s,
             cart_hash=quote.cart_hash,
             state=quote.state.value,
+            payment_terms_days=quote.cart.payment_terms_days,
             next_step=(
                 f"Call reserve_stock('{quote.quote_id}') to hold the stock, then "
                 f"create_purchase with a mandate whose cap is at least "
@@ -317,7 +339,9 @@ def build_server(storefront: Storefront) -> MCPServer:
             readOnlyHint=True, destructiveHint=False, idempotentHint=False, openWorldHint=False
         )
     )
-    def negotiate(sku: str, qty: int, message: str) -> NegotiationOut:
+    def negotiate(
+        sku: str, qty: int, message: str, payment_terms_days: int | None = None
+    ) -> NegotiationOut:
         """Negotiate the price of one line with the merchant's sales agent.
 
         Give it a real reason — order size, a repeat relationship, stock that has clearly been
@@ -335,7 +359,7 @@ def build_server(storefront: Storefront) -> MCPServer:
         if qty <= 0:
             raise ValueError("qty must be a positive whole number.")
 
-        result = storefront.negotiate(product, qty, message)
+        result = storefront.negotiate(product, qty, message, payment_terms_days=payment_terms_days)
         return NegotiationOut(
             sku=result.sku,
             qty=result.qty,
@@ -346,6 +370,7 @@ def build_server(storefront: Storefront) -> MCPServer:
             message=result.message,
             rounds_used=result.rounds_used,
             used_deterministic_fallback=result.used_fallback,
+            payment_terms_days=result.payment_terms_days,
             note=(
                 "This price is not held. Call request_quote to lock it into a quote."
                 if not result.blocked_reason
@@ -431,7 +456,7 @@ def default_storefront() -> Storefront:
     from vendable.core.catalog import load_seed
     from vendable.core.storefront import build_storefront
     from vendable.mandate.ap2 import public_pem_from_private
-    from vendable.policy.engine import LadderRung, MerchantPolicy
+    from vendable.policy.loader import load_policy, policy_path
 
     merchant = os.environ.get("VENDABLE_MERCHANT", "acme-fasteners")
     root = Path(__file__).resolve().parents[2]
@@ -439,21 +464,10 @@ def default_storefront() -> Storefront:
 
     public_pem = public_pem_from_private(settings.mandate_private_key())
 
-    policy = MerchantPolicy(
-        merchant_id=merchant,
-        margin_floor_bp=1500,
-        max_total_discount_bp=2000,
-        volume_ladder=[
-            LadderRung(threshold=100, grants_bp=500, label="100+ units -> 5%"),
-            LadderRung(threshold=500, grants_bp=1000, label="500+ units -> 10%"),
-            LadderRung(threshold=2000, grants_bp=1500, label="2000+ units -> 15%"),
-        ],
-        age_ladder=[
-            LadderRung(threshold=90, grants_bp=300, label="90+ days old -> 3%"),
-            LadderRung(threshold=180, grants_bp=500, label="180+ days old -> 5%"),
-        ],
-        allowed_territories=["IN-KA", "IN-MH", "IN-TN"],
-    )
+    # A merchant is a directory: catalog.json beside policy.json. Neither the margin floor
+    # nor the ladders are code, because a merchant who cannot read their own trading rules
+    # cannot confirm them -- and confirming them is the whole point of compiling them.
+    policy = load_policy(policy_path(merchant, root))
 
     razorpay = None
     if settings.razorpay_configured and settings.is_test_mode:

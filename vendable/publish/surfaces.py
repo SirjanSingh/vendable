@@ -164,6 +164,44 @@ def llms_txt(
         f"{b['min_qty']}+ units {b['discount_pct']}%" for b in policy.get("volume_breaks", [])
     )
 
+    terms = policy.get("payment_terms", {})
+    early = ", ".join(
+        (
+            f"cash with order for {t['discount_pct']}%"
+            if t["pay_within_days"] == 0
+            else f"pay within {t['pay_within_days']} days for {t['discount_pct']}%"
+        )
+        for t in terms.get("early_payment_discounts", [])
+        if t["discount_pct"] > 0
+    )
+    # Published, not sprung at refusal time. A buyer that knows the ceiling asks for
+    # compliant terms on the first call instead of discovering it by being refused.
+    statutory = terms.get("statutory_max_credit_days")
+    terms_lines = [
+        "## Payment terms, which move the price",
+        "",
+        f"Default terms are {terms.get('default', 'net 30')}. Pass `payment_terms_days` to",
+        "request_quote and negotiate. Paying sooner earns a published discount: "
+        + (early or "none published")
+        + ".",
+        "These terms are part of the quote's cart hash, so taking an early-payment price and",
+        "then paying late is not possible -- it is a different cart and a new quote.",
+    ]
+    if statutory is not None:
+        terms_lines += [
+            "",
+            f"**This supplier cannot grant more than {statutory} days' credit, by statute.** "
+            + str(terms.get("statutory_basis", "")),
+            "Asking for longer is refused rather than priced. That limit is not the",
+            "merchant's to waive, so there is no point negotiating for it.",
+        ]
+    else:
+        terms_lines += [
+            "",
+            f"Credit beyond {terms.get('max_credit_days', 60)} days is refused.",
+        ]
+    terms_block = "\n".join(terms_lines)
+
     return "\n".join(
         [
             f"# {merchant_id}",
@@ -205,6 +243,8 @@ def llms_txt(
             "  different merchant. Refusals name the constraint and the numbers, so read them",
             "  and retry rather than giving up.",
             f"- Sales outside {', '.join(policy.get('territories', []))}.",
+            "",
+            terms_block,
             "",
             "## Negotiation",
             "",

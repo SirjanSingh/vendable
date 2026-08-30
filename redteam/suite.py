@@ -38,11 +38,15 @@ from vendable.mandate.ap2 import (
 )
 from vendable.mandate.gate import Cart, CartLine, MandateGate, SpendLedger
 from vendable.negotiate.agent import NegotiationAgent
-from vendable.policy.engine import LadderRung, LineRequest, MerchantPolicy
+from vendable.policy.engine import LineRequest, ViolationCode
+from vendable.policy.loader import load_policy, policy_path
 
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / "evidence"
 MERCHANT = "acme-fasteners"
+MSME_MERCHANT = "shakti-forgings"
+"""A Udyam-registered small manufacturer, so s.15 of the MSMED Act caps its credit terms.
+Attacking a second merchant matters: the statutory guard is invisible on a trader."""
 
 
 @dataclass
@@ -80,29 +84,24 @@ class Report:
         return out
 
 
-def build_env():
-    """A storefront wired entirely from fixtures, in memory."""
+def build_env(merchant: str = MERCHANT):
+    """A storefront wired entirely from fixtures, in memory.
+
+    The policy is loaded from the merchant's own `policy.json` rather than restated here, so
+    these attacks run against the rules that actually ship. A red team testing a lookalike
+    policy proves nothing about the deployed one.
+    """
     priv, pub = generate_keypair()
-    catalog = Catalog(":memory:", merchant_id=MERCHANT)
-    catalog.put_many(load_seed(ROOT / "fixtures" / "merchants" / MERCHANT / "catalog.json"))
-    policy = MerchantPolicy(
-        merchant_id=MERCHANT,
-        margin_floor_bp=1500,
-        max_total_discount_bp=2000,
-        volume_ladder=[
-            LadderRung(threshold=100, grants_bp=500, label="100+ -> 5%"),
-            LadderRung(threshold=500, grants_bp=1000, label="500+ -> 10%"),
-        ],
-        age_ladder=[LadderRung(threshold=180, grants_bp=500, label="180d -> 5%")],
-        allowed_territories=["IN-KA", "IN-MH", "IN-TN"],
-    )
+    catalog = Catalog(":memory:", merchant_id=merchant)
+    catalog.put_many(load_seed(ROOT / "fixtures" / "merchants" / merchant / "catalog.json"))
+    policy = load_policy(policy_path(merchant, ROOT))
     sf = Storefront(
-        merchant_id=MERCHANT,
+        merchant_id=merchant,
         catalog=catalog,
         policy=policy,
         audit=AuditChain(":memory:"),
-        commerce=CommerceMachine(CommerceStore(":memory:"), merchant_id=MERCHANT),
-        gate=MandateGate(pub, merchant_id=MERCHANT, ledger=SpendLedger(":memory:")),
+        commerce=CommerceMachine(CommerceStore(":memory:"), merchant_id=merchant),
+        gate=MandateGate(pub, merchant_id=merchant, ledger=SpendLedger(":memory:")),
     )
     return priv, pub, sf
 
@@ -576,6 +575,94 @@ def attack_disclosure(r: Report) -> None:
     )
 
 
+# ---------------------------------------------------------------------------------
+# I. Payment terms -- the price lever, and the statute that bounds it
+# ---------------------------------------------------------------------------------
+
+
+def attack_terms(r: Report) -> None:
+    """Terms move the price, so terms are worth attacking.
+
+    Two different things are under test. The first is commercial: an early-payment discount
+    is granted against a *promise* to pay early, and a promise that binds nothing is not a
+    control. The second is statutory: s.15 of the MSMED Act is not the merchant's to waive,
+    so no order size and no offered price may buy past it.
+    """
+    _priv, _pub, sf = build_env()
+    machine = sf.commerce
+    stock = sf.catalog.stock_map()
+
+    rec = r.add("I1", "payment terms", "take the 2/10 price, then pay at 60 days instead")
+    q = machine.quote(
+        [CartLine(sku="BOLT-M8-40", qty=500, unit_price_paise=rupees("11.02"))],
+        payment_terms_days=10,
+    )
+    machine.reserve(q.quote_id, available=stock)
+    stretched = Cart(
+        merchant_id=MERCHANT,
+        lines=[CartLine(sku="BOLT-M8-40", qty=500, unit_price_paise=rupees("11.02"))],
+        payment_terms_days=60,
+    ).cart_hash()
+    try:
+        machine.begin_capture(q.quote_id, stretched)
+        rec(False, "the early-payment price was captured on stretched terms")
+    except CommerceError as exc:
+        rec(True, str(exc))
+
+    rec = r.add("I2", "payment terms", "honour the terms actually quoted (must be ALLOWED)")
+    try:
+        machine.begin_capture(q.quote_id, q.cart_hash)
+        rec(True, f"capture proceeded on the terms quoted (net {q.cart.payment_terms_days})")
+    except CommerceError as exc:
+        rec(False, f"a compliant capture was refused: {exc}")
+
+    rec = r.add("I3", "payment terms", "demand credit beyond the merchant's own ceiling")
+    _, d = sf.price_line("BOLT-M8-40", 500, payment_terms_days=90)
+    codes = {v.code for v in d.violations}
+    rec(
+        not d.allowed and ViolationCode.CREDIT_TERMS_EXCEEDED in codes,
+        d.violations[0].message if d.violations else "net 90 was accepted",
+    )
+
+    rec = r.add("I4", "payment terms", "backdate the terms to buy a discount that does not exist")
+    _, negative = sf.price_line("BOLT-M8-40", 500, payment_terms_days=-30)
+    _, cash = sf.price_line("BOLT-M8-40", 500, payment_terms_days=0)
+    rec(
+        negative.payment_terms_bp <= cash.payment_terms_bp,
+        f"terms of -30 days earned {negative.payment_terms_bp}bp, no more than the "
+        f"{cash.payment_terms_bp}bp for cash with order",
+    )
+
+    # --- the statutory half, against a merchant the Act actually reaches ---
+
+    _priv, _pub, msme = build_env(MSME_MERCHANT)
+
+    rec = r.add("I5", "payment terms", "ask a Udyam small manufacturer for net 60")
+    _, d = msme.price_line("SF-BOLT-M8-40", 500, payment_terms_days=60)
+    codes = {v.code for v in d.violations}
+    rec(
+        not d.allowed and ViolationCode.MSMED_LIMIT_EXCEEDED in codes,
+        d.violations[0].message if d.violations else "net 60 was accepted from an MSME supplier",
+    )
+
+    rec = r.add("I6", "payment terms", "buy past the statute with volume and a full-list offer")
+    _, d = msme.price_line(
+        "SF-BOLT-M8-40", 4000, payment_terms_days=90, offered_unit_price=rupees("11.50")
+    )
+    codes = {v.code for v in d.violations}
+    rec(
+        not d.allowed and ViolationCode.MSMED_LIMIT_EXCEEDED in codes,
+        "a 4,000-unit order at full list price still cannot defer payment past s.15",
+    )
+
+    rec = r.add("I7", "payment terms", "net 45 from the same supplier (must be ALLOWED)")
+    _, d = msme.price_line("SF-BOLT-M8-40", 500, payment_terms_days=45)
+    rec(
+        d.allowed,
+        "45 days is compliant -- s.15 says the period shall not *exceed* 45, so 45 is fine",
+    )
+
+
 SUITES = [
     attack_mandate,
     attack_cap,
@@ -585,6 +672,7 @@ SUITES = [
     attack_injection,
     attack_audit,
     attack_disclosure,
+    attack_terms,
 ]
 
 

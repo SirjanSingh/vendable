@@ -269,6 +269,25 @@ def test_cart_hash_is_order_independent_but_price_sensitive():
     assert tampered.cart_hash() != a.cart_hash()
 
 
+def test_cart_hash_is_sensitive_to_payment_terms():
+    """An early-payment discount is granted on a *promise* to pay early, and a promise that
+    binds nothing is not a control. Terms are in the hash, so taking 2/10 pricing and then
+    switching to Net 60 before capture breaks the authorisation exactly like a price edit.
+    """
+    lines = [CartLine(sku="A", qty=100, unit_price_paise=980)]
+    early = Cart(merchant_id=MERCHANT, lines=lines, payment_terms_days=10)
+    late = Cart(merchant_id=MERCHANT, lines=lines, payment_terms_days=60)
+    assert early.cart_hash() != late.cart_hash()
+
+
+def test_cart_hash_is_stable_for_identical_terms():
+    """The flip side: nothing about the hash may be incidental, or every capture breaks."""
+    lines = [CartLine(sku="A", qty=100, unit_price_paise=980)]
+    a = Cart(merchant_id=MERCHANT, lines=lines, payment_terms_days=10)
+    b = Cart(merchant_id=MERCHANT, lines=list(lines), payment_terms_days=10)
+    assert a.cart_hash() == b.cart_hash()
+
+
 # --- verify() directly -------------------------------------------------------------
 
 

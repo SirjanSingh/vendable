@@ -61,6 +61,8 @@ class NegotiationResult:
     message: str
     """What the buyer is actually told. Always policy-validated."""
     used_fallback: bool
+    payment_terms_days: int = 30
+    """The terms this price was struck on. A price without its terms is not a price."""
     turns: list[NegotiationTurn] = field(default_factory=list)
     injection: ScanResult | None = None
     blocked_reason: str = ""
@@ -95,12 +97,20 @@ def _build_user_prompt(
     max_discount_pct: float,
     buyer_message: str,
     prior_failure: str = "",
+    payment_terms_days: int = 30,
 ) -> str:
     parts = [
         f"Line item: {qty} x {product.sku} — {product.title}",
         f"List price: {format_inr(product.list_price_paise)} per {product.unit or 'unit'}",
         f"Your maximum discount authority on this line: {max_discount_pct:.2f}%",
         f"Stock on hand: {product.stock_qty}. This stock is {product.stock_age_days} days old.",
+        # Stated so the model's sentence matches the deal the engine actually priced. It is
+        # context, not a lever: the terms come from the buyer's request and the engine has
+        # already priced them, and the authority above is what is left to concede on top.
+        (
+            f"Payment terms on this line: Net {payment_terms_days}. Any discount those "
+            "terms earn is already inside your authority figure; do not add to it."
+        ),
         "",
         fenced_prompt_note("BUYER_MESSAGE"),
         fence(buyer_message, label="BUYER_MESSAGE"),
@@ -129,11 +139,19 @@ class NegotiationAgent:
         buyer_message: str,
         *,
         territory: str = "",
+        payment_terms_days: int | None = None,
     ) -> NegotiationResult:
         # What does policy allow here, before the model is involved at all?
         baseline: PolicyDecision = self.engine.evaluate(
-            product, LineRequest(sku=product.sku, qty=qty, territory=territory)
+            product,
+            LineRequest(
+                sku=product.sku,
+                qty=qty,
+                territory=territory,
+                payment_terms_days=payment_terms_days,
+            ),
         )
+        terms_days = baseline.payment_terms_days
 
         if not baseline.allowed:
             return NegotiationResult(
@@ -144,6 +162,7 @@ class NegotiationAgent:
                 conceded_bp=0,
                 message=baseline.explanation,
                 used_fallback=True,
+                payment_terms_days=terms_days,
                 blocked_reason="policy refuses this line outright",
             )
 
@@ -174,6 +193,7 @@ class NegotiationAgent:
                     "follow published rules rather than discussion."
                 ),
                 used_fallback=True,
+                payment_terms_days=terms_days,
                 injection=probe,
                 blocked_reason=f"injection detected -- {probe.summary()}",
             )
@@ -188,7 +208,12 @@ class NegotiationAgent:
             raw = self.completer.complete(
                 SYSTEM,
                 _build_user_prompt(
-                    product, qty, max_bp / 100, buyer_message, prior_failure=prior_failure
+                    product,
+                    qty,
+                    max_bp / 100,
+                    buyer_message,
+                    prior_failure=prior_failure,
+                    payment_terms_days=terms_days,
                 ),
             )
             proposal = _parse(raw)
@@ -213,6 +238,7 @@ class NegotiationAgent:
                     qty=qty,
                     territory=territory,
                     offered_unit_price_paise=proposed_price,
+                    payment_terms_days=terms_days,
                 ),
             )
             if verdict.allowed:
@@ -235,6 +261,7 @@ class NegotiationAgent:
                     conceded_bp=final_bp,
                     message=proposal["message"],
                     used_fallback=False,
+                    payment_terms_days=terms_days,
                     turns=turns,
                     injection=probe,
                 )
@@ -271,9 +298,11 @@ class NegotiationAgent:
             message=(
                 f"For {qty} x {product.sku} the best price available is "
                 f"{format_inr(baseline.best_unit_price_paise)} per unit "
-                f"({baseline.max_discount_bp / 100:.2f}% off list)."
+                f"({baseline.max_discount_bp / 100:.2f}% off list) "
+                f"on Net {baseline.payment_terms_days}."
             ),
             used_fallback=True,
+            payment_terms_days=baseline.payment_terms_days,
             turns=turns or [],
             injection=probe,
             blocked_reason=why,

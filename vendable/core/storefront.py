@@ -123,6 +123,22 @@ class Storefront:
                 for r in sorted(self.policy.age_ladder, key=lambda r: r.threshold)
             ],
             "territories": self.policy.allowed_territories or ["IN-KA", "IN-MH", "IN-TN"],
+            # Terms are published for the same reason the volume breaks are: a buyer's agent
+            # that cannot see the lever cannot pull it, and this one is the difference
+            # between a price and a deal in Indian B2B.
+            "payment_terms": {
+                "default": f"net {self.policy.default_payment_terms_days}",
+                "max_credit_days": self.policy.max_credit_days,
+                "early_payment_discounts": [
+                    {
+                        "pay_within_days": r.within_days,
+                        "discount_pct": round(r.grants_bp / 100, 2),
+                        "label": r.label,
+                    }
+                    for r in sorted(self.policy.payment_terms_ladder, key=lambda r: r.within_days)
+                ],
+                **self._statutory_terms_note(),
+            },
             "note": (
                 "Discounts are granted by declared rules, not by persuasion. Every counter-"
                 "offer is checked against a margin floor that is not published; asking for a "
@@ -131,29 +147,69 @@ class Storefront:
             ),
         }
 
+    def _statutory_terms_note(self) -> dict:
+        """The MSMED constraint, published rather than sprung on a buyer at refusal time.
+
+        This is a rule, not a secret, and unlike the margin floor there is nothing to lose
+        by publishing it -- a buyer who knows the ceiling asks for compliant terms first
+        instead of burning a round trip discovering it.
+        """
+        days = self.policy.statutory_max_credit_days()
+        if days is None:
+            return {}
+        return {
+            "statutory_max_credit_days": days,
+            "statutory_basis": (
+                f"This supplier is a Udyam-registered {self.policy.enterprise_class.value} "
+                f"{self.policy.udyam_activity.value}. Under s.15 of the MSMED Act payment "
+                f"cannot be deferred beyond {days} days"
+                + ("" if self.policy.written_agreement else " where no written agreement exists")
+                + ". Longer terms oblige the buyer to compound interest at three times the "
+                "RBI bank rate under s.16, and defer the buyer's own deduction on the "
+                "expense under s.43B(h) until it is actually paid."
+            ),
+        }
+
     # -- pricing -------------------------------------------------------------------
 
     def price_line(
-        self, sku: str, qty: int, *, territory: str = "", offered_unit_price: Paise | None = None
+        self,
+        sku: str,
+        qty: int,
+        *,
+        territory: str = "",
+        offered_unit_price: Paise | None = None,
+        payment_terms_days: int | None = None,
     ) -> tuple[Product, PolicyDecision]:
         product = self.get(sku)
         decision = self.engine.evaluate(
             product,
             LineRequest(
-                sku=sku, qty=qty, territory=territory, offered_unit_price_paise=offered_unit_price
+                sku=sku,
+                qty=qty,
+                territory=territory,
+                offered_unit_price_paise=offered_unit_price,
+                payment_terms_days=payment_terms_days,
             ),
         )
         return product, decision
 
     def quote(
-        self, items: list[tuple[str, int]], *, territory: str = ""
+        self,
+        items: list[tuple[str, int]],
+        *,
+        territory: str = "",
+        payment_terms_days: int | None = None,
     ) -> tuple[Quote, list[QuoteLine]]:
         """Price a basket at the best price policy allows, and open a quote.
 
         A quote is issued at the **published entitlement** -- list price minus whatever
-        volume break the quantity earns. A buyer gets that without having to ask, because
-        `get_policies` publishes the thresholds and withholding one until someone haggles
-        would make the published policy a lie.
+        volume break the quantity earns, and whatever the payment terms earn. A buyer gets
+        that without having to ask, because `get_policies` publishes both sets of thresholds
+        and withholding one until someone haggles would make the published policy a lie.
+
+        The terms are carried into the cart hash, so a buyer who is quoted at 2/10 and then
+        wants Net 60 has to be re-quoted rather than simply paying later.
 
         It is deliberately *not* issued at the absolute floor. The remaining authority (the
         stock-ageing allowance) is discretionary, and negotiating for it is the only thing
@@ -166,9 +222,17 @@ class Storefront:
         detail: list[QuoteLine] = []
         refusals: list[str] = []
 
+        terms_days = (
+            payment_terms_days
+            if payment_terms_days is not None
+            else self.policy.default_payment_terms_days
+        )
+
         for sku, qty in items:
             try:
-                product, decision = self.price_line(sku, qty, territory=territory)
+                product, decision = self.price_line(
+                    sku, qty, territory=territory, payment_terms_days=terms_days
+                )
             except StorefrontError as exc:
                 refusals.append(str(exc))
                 continue
@@ -195,7 +259,11 @@ class Storefront:
             )
             raise StorefrontError("Nothing could be quoted. " + " ".join(refusals))
 
-        q = self.commerce.quote(lines, notes={"territory": territory})
+        q = self.commerce.quote(
+            lines,
+            notes={"territory": territory, "payment_terms_days": str(terms_days)},
+            payment_terms_days=terms_days,
+        )
         self.audit.append(
             "merchant",
             Action.QUOTE_ISSUED,
@@ -203,6 +271,7 @@ class Storefront:
             {
                 "total_paise": q.total_paise,
                 "cart_hash": q.cart_hash,
+                "payment_terms_days": terms_days,
                 "lines": [
                     {"sku": d.sku, "qty": d.qty, "unit_paise": d.unit_price_paise} for d in detail
                 ],
@@ -211,7 +280,9 @@ class Storefront:
         )
         return q, detail
 
-    def negotiate(self, product: Product, qty: int, message: str):
+    def negotiate(
+        self, product: Product, qty: int, message: str, *, payment_terms_days: int | None = None
+    ):
         """Run one negotiation round-trip, and audit what happened.
 
         Every proposal the model made -- including the rejected ones -- lands in the chain.
@@ -221,7 +292,7 @@ class Storefront:
         from vendable.negotiate.agent import NegotiationAgent
 
         agent = NegotiationAgent(self.engine, self.completer)
-        result = agent.negotiate(product, qty, message)
+        result = agent.negotiate(product, qty, message, payment_terms_days=payment_terms_days)
 
         if result.injection is not None and not result.injection.is_clean:
             self.audit.append(
@@ -255,6 +326,7 @@ class Storefront:
                 "qty": qty,
                 "final_unit_paise": result.final_unit_price_paise,
                 "conceded_bp": result.conceded_bp,
+                "payment_terms_days": result.payment_terms_days,
                 "used_fallback": result.used_fallback,
                 "blocked_reason": result.blocked_reason,
             },
@@ -285,7 +357,15 @@ class Storefront:
         if q is None:
             raise StorefrontError(f"No such quote: {quote_id}.")
 
-        cart = Cart(merchant_id=self.merchant_id, currency="INR", lines=list(q.cart.lines))
+        # The terms must be carried across from the quote's own cart. Rebuilding without
+        # them would hash to something the quote never authorised, and every capture would
+        # fail its own tamper check.
+        cart = Cart(
+            merchant_id=self.merchant_id,
+            currency="INR",
+            lines=list(q.cart.lines),
+            payment_terms_days=q.cart.payment_terms_days,
+        )
 
         self.audit.append(
             "buyer", Action.MANDATE_PRESENTED, quote_id, {"cart_hash": cart.cart_hash()}

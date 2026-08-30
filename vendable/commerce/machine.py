@@ -180,11 +180,22 @@ class CommerceMachine:
 
     # -- quote ---------------------------------------------------------------------
 
-    def quote(self, lines: list[CartLine], *, notes: dict[str, str] | None = None) -> Quote:
+    def quote(
+        self,
+        lines: list[CartLine],
+        *,
+        notes: dict[str, str] | None = None,
+        payment_terms_days: int = 30,
+    ) -> Quote:
         if not lines:
             raise CommerceError("Cannot quote an empty cart.")
         now = self.clock()
-        cart = Cart(merchant_id=self.merchant_id, currency="INR", lines=lines)
+        cart = Cart(
+            merchant_id=self.merchant_id,
+            currency="INR",
+            lines=lines,
+            payment_terms_days=payment_terms_days,
+        )
         q = Quote(
             quote_id=f"q_{uuid.uuid4().hex[:16]}",
             merchant_id=self.merchant_id,

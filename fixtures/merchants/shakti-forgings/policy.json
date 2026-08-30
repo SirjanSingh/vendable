@@ -1,0 +1,31 @@
+{
+  "merchant_id": "shakti-forgings",
+
+  "margin_floor_bp": 1800,
+  "max_total_discount_bp": 1500,
+
+  "volume_ladder": [
+    { "threshold": 200, "grants_bp": 300, "label": "200+ units -> 3%" },
+    { "threshold": 1000, "grants_bp": 700, "label": "1000+ units -> 7%" },
+    { "threshold": 4000, "grants_bp": 1200, "label": "4000+ units -> 12%" }
+  ],
+
+  "age_ladder": [
+    { "threshold": 120, "grants_bp": 200, "label": "120+ days old -> 2%" }
+  ],
+
+  "payment_terms_ladder": [
+    { "within_days": 0, "grants_bp": 400, "label": "cash with order -> 4%" },
+    { "within_days": 15, "grants_bp": 250, "label": "pay within 15 days -> 2.5%" },
+    { "within_days": 45, "grants_bp": 0, "label": "net 45 -> list" }
+  ],
+  "default_payment_terms_days": 30,
+  "max_credit_days": 90,
+
+  "allowed_territories": ["IN-RJ", "IN-KA", "IN-MH"],
+
+  "udyam_registered": true,
+  "enterprise_class": "small",
+  "udyam_activity": "manufacturer",
+  "written_agreement": true
+}

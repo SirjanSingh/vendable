@@ -1,0 +1,32 @@
+{
+  "merchant_id": "acme-fasteners",
+
+  "margin_floor_bp": 1500,
+  "max_total_discount_bp": 2000,
+
+  "volume_ladder": [
+    { "threshold": 100, "grants_bp": 500, "label": "100+ units -> 5%" },
+    { "threshold": 500, "grants_bp": 1000, "label": "500+ units -> 10%" },
+    { "threshold": 2000, "grants_bp": 1500, "label": "2000+ units -> 15%" }
+  ],
+
+  "age_ladder": [
+    { "threshold": 90, "grants_bp": 300, "label": "90+ days old -> 3%" },
+    { "threshold": 180, "grants_bp": 500, "label": "180+ days old -> 5%" }
+  ],
+
+  "payment_terms_ladder": [
+    { "within_days": 0, "grants_bp": 300, "label": "cash with order -> 3%" },
+    { "within_days": 10, "grants_bp": 200, "label": "2/10 - pay within 10 days -> 2%" },
+    { "within_days": 30, "grants_bp": 0, "label": "net 30 -> list" }
+  ],
+  "default_payment_terms_days": 30,
+  "max_credit_days": 60,
+
+  "allowed_territories": ["IN-KA", "IN-MH", "IN-TN"],
+
+  "udyam_registered": true,
+  "enterprise_class": "small",
+  "udyam_activity": "trader",
+  "written_agreement": true
+}
