@@ -115,19 +115,39 @@ class Catalog:
 
     # -- reading -------------------------------------------------------------------
 
+    def _scope(self) -> tuple[str, tuple]:
+        """The predicate that keeps one merchant out of another's catalog.
+
+        Every read goes through this. The `merchant_id` column and its index existed from
+        the first schema, but nothing used them while there was only one merchant -- so two
+        storefronts sharing one SQLite file would each serve the other's SKUs, priced
+        against their own policy and margin floor. An empty `merchant_id` still means "all",
+        which is what the CLI and the test fixtures build.
+        """
+        if not self.merchant_id:
+            return "1=1", ()
+        return "merchant_id = ?", (self.merchant_id,)
+
     def get(self, sku: str) -> Product | None:
-        row = self._conn.execute("SELECT body FROM products WHERE sku = ?", (sku,)).fetchone()
+        pred, params = self._scope()
+        row = self._conn.execute(
+            f"SELECT body FROM products WHERE sku = ? AND {pred}", (sku, *params)
+        ).fetchone()
         return Product.model_validate_json(row["body"]) if row else None
 
     def all(self) -> list[Product]:
-        rows = self._conn.execute("SELECT body FROM products ORDER BY sku")
+        pred, params = self._scope()
+        rows = self._conn.execute(f"SELECT body FROM products WHERE {pred} ORDER BY sku", params)
         return [Product.model_validate_json(r["body"]) for r in rows]
 
     def stock_map(self) -> dict[str, int]:
         return {p.sku: p.stock_qty for p in self.all()}
 
     def __len__(self) -> int:
-        return int(self._conn.execute("SELECT COUNT(*) FROM products").fetchone()[0])
+        pred, params = self._scope()
+        return int(
+            self._conn.execute(f"SELECT COUNT(*) FROM products WHERE {pred}", params).fetchone()[0]
+        )
 
     # -- search --------------------------------------------------------------------
 
@@ -142,7 +162,10 @@ class Catalog:
         if not terms:
             results = self.all()
         else:
-            rows = self._conn.execute("SELECT sku, body, search_blob FROM products")
+            pred, params = self._scope()
+            rows = self._conn.execute(
+                f"SELECT sku, body, search_blob FROM products WHERE {pred}", params
+            )
             scored: list[tuple[int, Product]] = []
             for row in rows:
                 blob = row["search_blob"]

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from vendable.core.catalog import Catalog
 from vendable.core.models import (
     Availability,
     Product,
@@ -174,3 +175,55 @@ def test_apply_bp_rounds_half_up():
     assert apply_bp(100_000, 1800) == 18_000
     assert apply_bp(1, 5_000) == 1  # 0.5 paise -> 1
     assert apply_bp(1, 4_999) == 0
+
+
+# --- merchant scoping --------------------------------------------------------------
+#
+# The products table has carried a merchant_id column and an index on it from the start,
+# but every read ignored it. That was invisible while there was one merchant and became a
+# correctness bug the moment there were two: a second storefront sharing the same SQLite
+# file would serve the first merchant's SKUs, priced against its own policy.
+
+
+def _scoped(tmp_path, merchant, products):
+    cat = Catalog(tmp_path / "shared.db", merchant_id=merchant)
+    cat.put_many(products)
+    return cat
+
+
+def test_two_merchants_on_one_file_do_not_see_each_other(tmp_path, bolt):
+    acme = _scoped(tmp_path, "acme-fasteners", [bolt])
+
+    other = bolt.model_copy(update={"sku": "SF-BOLT-M8", "list_price_paise": 9200})
+    shakti = _scoped(tmp_path, "shakti-forgings", [other])
+
+    assert len(acme) == 1
+    assert len(shakti) == 1
+    assert [p.sku for p in acme.all()] == ["BOLT-M8"]
+    assert [p.sku for p in shakti.all()] == ["SF-BOLT-M8"]
+
+
+def test_get_does_not_reach_across_merchants(tmp_path, bolt):
+    _scoped(tmp_path, "acme-fasteners", [bolt])
+    shakti = Catalog(tmp_path / "shared.db", merchant_id="shakti-forgings")
+    assert shakti.get("BOLT-M8") is None
+
+
+def test_search_does_not_reach_across_merchants(tmp_path, bolt):
+    _scoped(tmp_path, "acme-fasteners", [bolt])
+    shakti = Catalog(tmp_path / "shared.db", merchant_id="shakti-forgings")
+    assert shakti.search("bolt") == []
+
+
+def test_stock_map_is_scoped(tmp_path, bolt):
+    """Reservations are checked against this. An unscoped stock map would let one merchant
+    hold stock it does not own."""
+    _scoped(tmp_path, "acme-fasteners", [bolt])
+    shakti = Catalog(tmp_path / "shared.db", merchant_id="shakti-forgings")
+    assert shakti.stock_map() == {}
+
+
+def test_an_unscoped_catalog_still_sees_everything(tmp_path, bolt):
+    """Tests and the CLI build catalogs with no merchant. That must keep meaning 'all'."""
+    _scoped(tmp_path, "acme-fasteners", [bolt])
+    assert len(Catalog(tmp_path / "shared.db")) == 1
