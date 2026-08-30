@@ -26,6 +26,17 @@ import os
 from pathlib import Path
 
 from mcp.server import MCPServer
+
+# Every refusal in this file is raised as `ToolError`, never `ValueError`, and the
+# difference is the whole product. The SDK treats an anticipated `ToolError` as a message
+# for the buyer to read and act on; anything else is a crash, and the text is withheld --
+# the caller gets a bare `Error executing tool request_quote` and no reason. This was
+# `ValueError` for most of the build, so the MSMED refusal, the margin-floor refusal and
+# every malformed-argument hint reached the wire stripped of the sentence that made them
+# useful. Nothing caught it: the tests call the storefront directly, where the message is
+# still on the exception, and only a client on the far side of the transport can see the
+# loss. See what-broke.md.
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
@@ -220,7 +231,7 @@ def build_server(storefront: Storefront) -> MCPServer:
         try:
             return _product_out(storefront.get(sku))
         except StorefrontError as exc:
-            raise ValueError(str(exc)) from exc
+            raise ToolError(str(exc)) from exc
 
     @mcp.tool(annotations=read_only)
     def get_policies() -> PolicyOut:
@@ -264,11 +275,11 @@ def build_server(storefront: Storefront) -> MCPServer:
             try:
                 qty = int(item.get("qty", 0))
             except (TypeError, ValueError):
-                raise ValueError(
+                raise ToolError(
                     f"qty for '{sku}' must be a whole number, got {item.get('qty')!r}."
                 ) from None
             if not sku or qty <= 0:
-                raise ValueError(
+                raise ToolError(
                     'Each item needs a non-empty "sku" and a positive integer "qty", '
                     'e.g. {"sku": "BOLT-M8-40", "qty": 500}.'
                 )
@@ -279,7 +290,7 @@ def build_server(storefront: Storefront) -> MCPServer:
                 parsed, territory=territory, payment_terms_days=payment_terms_days
             )
         except StorefrontError as exc:
-            raise ValueError(str(exc)) from exc
+            raise ToolError(str(exc)) from exc
 
         return QuoteOut(
             quote_id=quote.quote_id,
@@ -323,7 +334,7 @@ def build_server(storefront: Storefront) -> MCPServer:
         try:
             quote = storefront.reserve(quote_id)
         except StorefrontError as exc:
-            raise ValueError(str(exc)) from exc
+            raise ToolError(str(exc)) from exc
         return ReservationOut(
             quote_id=quote.quote_id,
             state=quote.state.value,
@@ -355,9 +366,9 @@ def build_server(storefront: Storefront) -> MCPServer:
         try:
             product = storefront.get(sku)
         except StorefrontError as exc:
-            raise ValueError(str(exc)) from exc
+            raise ToolError(str(exc)) from exc
         if qty <= 0:
-            raise ValueError("qty must be a positive whole number.")
+            raise ToolError("qty must be a positive whole number.")
 
         result = storefront.negotiate(product, qty, message, payment_terms_days=payment_terms_days)
         return NegotiationOut(
@@ -403,7 +414,7 @@ def build_server(storefront: Storefront) -> MCPServer:
         try:
             result = storefront.purchase(quote_id, mandate)
         except StorefrontError as exc:
-            raise ValueError(str(exc)) from exc
+            raise ToolError(str(exc)) from exc
 
         first = result.gate.first_refusal
         return PurchaseOut(
