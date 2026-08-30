@@ -1,0 +1,141 @@
+{
+  "invariants": [
+    {
+      "cases_checked": 5292,
+      "description": "Negotiating is never worse than just asking (best <= entitled).",
+      "name": "never_worse_than_asking",
+      "violation_count": 0,
+      "violations": []
+    },
+    {
+      "cases_checked": 4486,
+      "description": "For payment terms t1 < t2 on the same line, price(t1) <= price(t2).",
+      "name": "pay_sooner_never_costs_more",
+      "violation_count": 0,
+      "violations": []
+    },
+    {
+      "cases_checked": 4910,
+      "description": "For quantities q1 < q2 on the same SKU/terms, best(q2) <= best(q1).",
+      "name": "more_never_costs_more_per_unit",
+      "violation_count": 0,
+      "violations": []
+    },
+    {
+      "cases_checked": 5292,
+      "description": "Every allowed price clears the margin floor for its product/policy.",
+      "name": "clears_margin_floor",
+      "violation_count": 20,
+      "violations": [
+        {
+          "detail": "PIPE-GI-40 qty=5 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=5 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=5 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=5 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=5 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=6 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=6 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=6 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=6 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=6 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=89 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=89 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=89 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=89 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=89 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=90 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=90 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=90 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=90 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        },
+        {
+          "detail": "PIPE-GI-40 qty=90 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000)",
+          "merchant": "acme-fasteners"
+        }
+      ]
+    },
+    {
+      "cases_checked": 5292,
+      "description": "No price ever exceeds list price.",
+      "name": "never_exceeds_list",
+      "violation_count": 0,
+      "violations": []
+    },
+    {
+      "cases_checked": 5292,
+      "description": "A refused line always has a non-empty violation list and explanation.",
+      "name": "refusal_explains_itself",
+      "violation_count": 0,
+      "violations": []
+    },
+    {
+      "cases_checked": 5292,
+      "description": "Evaluating the identical case twice returns an identical decision.",
+      "name": "deterministic",
+      "violation_count": 0,
+      "violations": []
+    }
+  ],
+  "line_evaluations": 5292,
+  "merchants": [
+    "acme-fasteners",
+    "shakti-forgings"
+  ],
+  "total_cases_checked": 35856,
+  "total_violations": 20
+}
