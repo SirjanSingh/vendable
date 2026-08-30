@@ -16,8 +16,9 @@ The route that works, found by probing rather than by reading:
       -> https://api.razorpay.com/v1/gateway/mocksharp/payment  ->  [Success] [Failure]
 
 `mocksharp` is Razorpay's own test simulator. Two buttons, no captcha, no OTP. It also makes
-**failure reproducible on demand**, which is where the Phase 5 declined-payment evidence comes
-from -- a genuine gift, since a payment that fails only sometimes cannot be put in a table.
+**failure reproducible on demand** -- a genuine gift, since a payment that fails only sometimes
+cannot be put in a demo. `scripts/demo_buy.py --decline` uses it for exactly that: it authorises
+a second order, presses Failure, and then checks against Razorpay that the link is still unpaid.
 
 None of this touches live money: `RazorpayClient` refuses to construct on a non-test key.
 """

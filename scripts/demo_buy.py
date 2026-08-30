@@ -256,6 +256,83 @@ def settle(out: dict, pay_url: str) -> None:
         print("   no captured payment on this link yet")
 
 
+def scene_decline(c: McpClient) -> int:
+    """A payment that fails, and a system that does not pretend otherwise.
+
+    Track 1's pass bar asks for one failure handled gracefully, and a payment declining is
+    the one failure in this system that is genuinely outside its control. Razorpay's own
+    `mocksharp` simulator makes it reproducible on demand, which is the reason this scene can
+    exist at all -- a payment that fails only sometimes cannot be put in a demo.
+
+    What "gracefully" has to mean here is specific: the authorisation was valid and stays
+    valid, the money did not move, and nothing anywhere claims it did.
+    """
+    rule("17. A payment that is declined. Nothing may be marked paid.")
+    quote = c.call("request_quote", items=[{"sku": BUY_SKU, "qty": 350}], territory="IN-KA")
+    quote_id = quote["quote_id"]
+    print(f"   a second, smaller order: 350 x {BUY_SKU}, total {quote['total']}")
+
+    c.call("reserve_stock", quote_id=quote_id)
+    mandate = mint_mandate("10000")
+    out = c.call("create_purchase", quote_id=quote_id, mandate=mandate)
+    print(f"   authorised={out['authorised']}  amount {out['amount']}")
+    if not out["authorised"]:
+        print(f"   FAIL: this purchase should have been authorised. {out['explanation']}")
+        return 1
+
+    pay_url = out.get("payment_url", "")
+    if not pay_url:
+        print("   no payment provider configured; cannot demonstrate a decline.")
+        return 0
+
+    from vendable.core.money import format_inr
+    from vendable.razorpay.checkout import HostedCheckoutDriver, Outcome
+    from vendable.razorpay.client import RazorpayClient
+
+    print("   driving the same hosted page, but pressing Failure in the simulator")
+    result = HostedCheckoutDriver().pay(pay_url, Outcome.FAILURE)
+    print(f"   completed={result.completed}   {' -> '.join(result.steps)}")
+
+    rz = RazorpayClient()
+    time.sleep(4)
+    link_id = out.get("payment_link_id") or ""
+    detail = rz._request("GET", f"/payment_links/{link_id}") if link_id else {}
+    print(
+        f"\n   link {link_id}: status={detail.get('status')}, "
+        f"amount_paid={format_inr(detail.get('amount_paid', 0))}"
+    )
+    for entry in detail.get("payments", []):
+        payment = rz.fetch_payment(entry.get("payment_id"))
+        print(f"   {payment.id}  {payment.status:<10} {format_inr(payment.amount_paise):>12}")
+
+    paid = int(detail.get("amount_paid", 0) or 0)
+    ok = paid == 0 and detail.get("status") != "paid"
+    print()
+    print(
+        wrap(
+            "The link is still unpaid and nothing was captured. The authorisation itself was "
+            "and remains valid -- the mandate cleared every check -- so the failure is where "
+            "it belongs, on the money leg, and the buyer's next step is to pay the same link "
+            "again rather than to obtain a new authorisation. The quote is not cancelled, the "
+            "stock stays reserved for its window, and no part of this system recorded a sale."
+        )
+    )
+    print()
+    print(
+        wrap(
+            "One honest caveat: `payment.failed` reaches the audit chain through the webhook, "
+            "and a webhook cannot reach localhost. Run `ngrok http 8080` and point the "
+            "dashboard at it to see that record written. Without it the chain shows the "
+            "authorisation and the payment request, and no capture -- which is correct, and "
+            "is exactly what it should show for a payment that did not complete."
+        )
+    )
+    if not ok:
+        print("\n   FAIL: the link reports money moved on a declined payment.")
+        return 1
+    return 0
+
+
 # -- main -------------------------------------------------------------------------------
 
 
@@ -266,6 +343,11 @@ def main() -> int:
         "--second", default="http://localhost:8081/mcp", help="second merchant's MCP URL"
     )
     ap.add_argument("--skip-payment", action="store_true", help="stop before the money leg")
+    ap.add_argument(
+        "--decline",
+        action="store_true",
+        help="also run a payment that fails, and show that nothing gets marked paid",
+    )
     args = ap.parse_args()
 
     c = McpClient(args.url)
@@ -354,12 +436,15 @@ def main() -> int:
     print(f"   authorised={again['authorised']}")
     print(f"   {again['explanation']}")
 
+    declined = 0
     if args.skip_payment:
         print("\n   --skip-payment: stopping before the money leg.")
     elif not pay_url:
         print("\n   No payment provider configured; stopping before the money leg.")
     else:
         settle(out, pay_url)
+        if args.decline:
+            declined = scene_decline(c)
 
     rule("Audit trail")
     from vendable.audit.chain import AuditChain
@@ -375,7 +460,7 @@ def main() -> int:
     )
 
     c.close()
-    return 0
+    return declined
 
 
 if __name__ == "__main__":

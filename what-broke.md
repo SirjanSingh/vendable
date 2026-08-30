@@ -454,3 +454,42 @@ that claimed determinism while flickering. Seven identical rows that read as con
 shape: *the measurement did not include the part that was broken.* The check that catches all
 four is the same one — ask what the output would look like if the thing you care about were
 absent, and if the answer is "identical", you are not measuring it.
+
+---
+
+## 2026-08-31 · The console took its own server down on first page load
+
+**Expected:** open `/console`, see the ledger.
+
+**What actually happened:** the first request rendered. The second returned 500, and so did
+every request after it, including the MCP tools a buyer would be using:
+
+```
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+```
+
+**Cause:** the console opened an `AuditChain` per request and closed it in a `finally`, which
+is the ordinary shape for a per-request resource. It is the wrong shape here.
+`vendable/core/db.py` keeps **one connection per database file, shared by every store** — that
+is a deliberate decision, taken earlier in the build to stop a webhook and a health check
+colliding on a write lock. So `AuditChain.close()` does not release a handle; it closes the
+connection out from under the catalog, the spend ledger, the commerce store and the webhook
+de-duplicator at the same time.
+
+**What made it easy to walk into:** the docstring on `AuditChain.close()` said the opposite of
+what the code did — *"a shared connection is only really closed when the pool drops it, because
+sibling stores on the same file are still using it."* That reads as a reassurance. The pool
+does not refcount; `close()` pops the entry and closes it unconditionally. I wrote the console
+against the comment rather than the callee, which is what comments are for, and the comment was
+wrong.
+
+**Fix:** the console holds the storefront's own chain and never closes anything. The docstring
+now says plainly that this closes the connection for every store sharing the file, and names
+the exception it produces, so the next person reads a warning instead of a reassurance.
+
+**The general lesson**, and it is not "read the code not the comments" — a comment you cannot
+trust is worse than no comment, so the fix has to be to the comment. It is that **a wrong
+comment fails silently in exactly the situations a test suite does not cover**: 226 tests use
+`:memory:` databases, which `db.connect` deliberately never shares, so no test could have
+observed the shared-connection behaviour at all. The one place it bites is a long-lived process
+with more than one store open, which is every deployment and no test.

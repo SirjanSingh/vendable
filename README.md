@@ -222,6 +222,40 @@ as a pure function, seven lines and no model call. OpenAI's ACP documentation st
 that "returns, tax, and fraud modeling are out of scope"; UCP and AP2 have no notion of
 statutory payment terms either.
 
+## The merchant's side
+
+Everything above is built for the buyer's agent. One surface is built for the person whose
+money it is:
+
+```bash
+.venv/Scripts/python scripts/serve_demo.py    # both merchants
+# then open http://localhost:8080/console
+```
+
+A merchant handing a sales agent the keys has exactly two questions, and the console answers
+both from the same data the buyer transacts against — not a copy of it.
+
+- **What is it allowed to do?** The compiled policy in the merchant's own numbers: the volume
+  ladder, the early-payment ladder, the margin floor, and — where the supplier is inside s.15
+  — the statutory cap, published rather than sprung at refusal time.
+- **What has it been doing?** The audit chain, live. Approvals render as hairlines. **A refusal
+  renders as a document**, with its reason set large, because the reason is the product and a
+  refusal a merchant has to decode is a refusal they will learn to ignore.
+- **What would it say to *this* buyer?** A rehearsal box runs a buyer's message through the
+  real `negotiate` path and the real engine, and reports two numbers side by side: what policy
+  already owed that buyer, and how much of the discretionary allowance the agent chose to
+  spend. Paste the prompt injection in and watch it spend zero.
+
+It is **local-only by default**. It shows cost prices and the agent's spending authority —
+precisely what H1/H2 in [`SECURITY.md`](SECURITY.md) identify as the thing a buyer most wants
+— so `VENDABLE_CONSOLE=auto` mounts it for `VENDABLE_ENV=local` and nowhere else. Turning it
+on in a deployment is a deliberate act that has to be paired with an authenticating proxy.
+
+`scripts/verify_console.py` drives it in Chromium and asserts what a merchant would actually
+see, including that every refusal reaches the page carrying its reason, that the statute
+appears for a manufacturer and does not for a trader, and that an injection concedes nothing.
+Fourteen checks, and it fails on any browser console error.
+
 ## What is claimed, and what is not
 
 The mandate is **modelled on** Google's published AP2 `open_payment_mandate` JSON Schema —
@@ -289,11 +323,14 @@ ecosystem, and it belongs in the open rather than glossed over.
 ## Verify it yourself
 
 ```bash
-.venv/Scripts/python scripts/verify_offline.py    # tests pass with every socket blocked
+.venv/Scripts/python scripts/verify_offline.py    # tests pass, no network beyond loopback
 .venv/Scripts/python -m redteam.suite             # 47 attacks
 .venv/Scripts/python scripts/gate_matrix.py       # 62 gate cases
 .venv/Scripts/python scripts/score_extraction.py  # extraction vs ground truth (needs a key)
+.venv/Scripts/python scripts/serve_demo.py        # both merchants, one terminal
 .venv/Scripts/python scripts/demo_buy.py          # the full buy, over the wire
+.venv/Scripts/python scripts/demo_buy.py --decline    # ...and a payment that fails
+.venv/Scripts/python scripts/verify_console.py    # drives the console in Chromium
 .venv/Scripts/vendable audit verify               # walk the hash chain
 ```
 
