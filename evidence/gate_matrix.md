@@ -69,7 +69,7 @@ None. Every case landed where the answer key said it should — including the ni
 | MULTI-10-5000 | multi-line totals | 10 lines summing to ₹5,000.00 | allow | allow |  |
 | MULTI-10-5001 | multi-line totals | 10 lines summing to ₹5,001.00 | refuse | refuse | amount_over_cap |
 | EXP-fresh | expiry | mandate fresh | allow | allow |  |
-| EXP-1s-left | expiry | mandate 1s left | allow | allow |  |
+| EXP-30s-left | expiry | mandate 30s left | allow | allow |  |
 | EXP-just-expired | expiry | mandate just expired | refuse | refuse | mandate_invalid |
 | EXP-long-expired | expiry | mandate long expired | refuse | refuse | mandate_invalid |
 | EXP-issued-and-expired | expiry | mandate issued and expired | refuse | refuse | mandate_invalid |

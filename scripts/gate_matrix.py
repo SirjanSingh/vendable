@@ -119,7 +119,12 @@ def build_cases() -> list[Case]:
     now = int(time.time())
     for label, issued_offset, ttl, allow in (
         ("fresh", 0, 3600, True),
-        ("1s-left", -3599, 3600, True),
+        # 30 seconds of headroom, not 1. At a 1-second margin this case raced the clock:
+        # `now` is sampled once at the top, and a run that took longer than a second to
+        # reach the check saw the mandate expire under it. That made an evidence file
+        # claiming to reproduce on any machine flicker between 62/62 and 61/62 on the same
+        # code. The boundary itself is still tested exactly, by `just-expired` below.
+        ("30s-left", -3570, 3600, True),
         ("just-expired", -3601, 3600, False),
         ("long-expired", -86400, 3600, False),
         ("issued-and-expired", -7200, 60, False),
