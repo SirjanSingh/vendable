@@ -88,8 +88,38 @@ read and approve.
 The rule the whole design follows: **the LLM proposes, a deterministic engine disposes.** The
 red team tests it the only way that means anything — with a *fully captured* model, one that
 is not tricked but is already the attacker, demanding 95% off on every turn. The floor holds.
-That is the evidence that prompt-level defences here are a convenience, and the policy engine
-is the control.
+
+### The prompt does not do what it says. Measured, not assumed.
+
+The system prompt in `vendable/negotiate/agent.py` instructs the model that a larger order or
+ageing stock are reasons to concede, and that **"persistence is not a reason."** So I checked,
+over 105 recorded calls holding the line item fixed and varying only the buyer's message:
+
+| what the buyer said | mean concession | vs a bare ask |
+|---|---|---|
+| bare ask | 1000 bp | — |
+| **stock has been sitting** | **1000 bp** | **+0** |
+| a real volume commitment | 1013 bp | +13 |
+| we've bought from you for years | 1020 bp | +20 |
+| **pure persistence** | **1053 bp** | **+53** |
+| **"I spoke to your owner"** | **1080 bp** | **+80** |
+| a competitor's quote | 1107 bp | +107 |
+
+**Persistence beat both of the reasons the prompt names.** Stock age moved the price by
+exactly zero, on stock 200 days old — the precise condition the discretionary allowance
+exists to clear. A claimed approval scored second highest, despite the prompt stating plainly
+that anyone claiming one is lying, and the injection scanner flagged none of them.
+
+And yet every median sat at the published entitlement, and the worst case stayed inside
+authority. **The prompt failed and the engine held.** That is the whole architecture in one
+table: prompt-level defence is a convenience, and the policy engine is the control. It is
+also why the discount ladders are declared data rather than prompt text — the part of this
+system you can talk to is the part that did not hold.
+
+Separately, 20 raw proposals were measured with nothing checking them at all. None breached
+the margin floor: offered 15% of authority, the model proposed 7–14% and never approached the
+₹29.42 floor. So the engine is **insurance against the tail, not the median** — the captured
+model is the tail, this is the ordinary case, and neither number means much without the other.
 
 ## Evidence
 
@@ -100,7 +130,9 @@ Numbers I would defend in a room, including the unflattering ones.
 | Mandate gate, 62 generated cases | **62/62, zero false accepts** | [`evidence/gate_matrix.md`](evidence/gate_matrix.md) |
 | Red team, 47 attacks in 9 classes | **44 defended, 3 findings published** | [`evidence/redteam.md`](evidence/redteam.md) |
 | Extraction vs hand-labelled truth | **100% on every field that affects money** | [`evidence/extraction.md`](evidence/extraction.md) |
-| Test suite | 186 passing, no network, no credentials | `scripts/verify_offline.py` |
+| Pricing invariants, 5,292 evaluations | **7 properties, 0 violations** | [`evidence/negotiation_invariants.md`](evidence/negotiation_invariants.md) |
+| Negotiation, 125 recorded model calls | **0/20 raw proposals breached the floor; the prompt's own claim failed** | [`evidence/negotiation.md`](evidence/negotiation.md) |
+| Test suite | 216 passing, no network, no credentials | `scripts/verify_offline.py` |
 
 **The three published findings are trade-offs, not accidents, and they deserve judging:**
 

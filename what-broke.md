@@ -366,3 +366,41 @@ sweep looked everywhere.
 The sweep now runs 5,292 evaluations across seven invariants with zero violations, and the
 one guarding the ₹12.00-vs-₹11.25 regression holds in all 5,292 — previously that fix was
 guarded only by a comment.
+
+---
+
+## Two experiments that would have published confident nonsense
+
+**2026-08-31.** Both caught before the real recording pass, one by a smoke test and one by
+reading the first output carefully.
+
+### An experiment with nothing to measure
+
+The reason-vs-persistence experiment holds a line item fixed and varies only the buyer's
+message. The first recording came back with all seven categories at **exactly 1000.0 bp** —
+mean, median and max identical. That reads as admirable consistency.
+
+It was nothing of the sort. The fixed line was `BOLT-M8-40`, whose stock is 45 days old. The
+ageing ladder's first rung is 90 days, so no ageing authority unlocked and the entire discount
+was the published volume break: `discretionary_bp` was **zero**. `NegotiationAgent` floors
+every outcome at the published entitlement, so the buyer's message could not change the answer
+*by construction*. The experiment measured the clamp, not the model.
+
+Moved to `BOLT-M12-75`, 200 days old, which unlocks the 5% ageing rung — 500bp of
+discretionary room that only a negotiation can reach. Then the categories separated, and the
+separation is the finding.
+
+What makes this worth writing down: seven identical rows do not look like a bug. They look
+like a clean result, and would have gone into the README as one.
+
+### A breach rate from four samples
+
+`run_n1` iterated its four cases exactly once, ignoring `--runs`. A single unlucky reply would
+have published as *"25% of raw proposals breach the margin floor"* — a headline number resting
+on n=4. Now each case repeats `--runs` times: 20 proposals rather than 4.
+
+Same failure mode as the syntax error that passed 179 tests, and as the gate matrix that
+claimed determinism while flickering. The measurement apparatus was wrong in a way the output
+did not reveal. Three times now, so it is a pattern rather than bad luck: **check what the
+number would look like if the thing being measured were absent.** Seven identical rows, or a
+rate from four samples, should both have failed that check immediately.
