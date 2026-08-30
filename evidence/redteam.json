@@ -35,49 +35,49 @@
       "class": "cap evasion",
       "attempt": "spend one paisa over the cap",
       "defended": true,
-      "detail": "Refused \u20b95,000.01 against mandate 21a92040. Cart total \u20b95,000.01 exceeds the mandate cap of \u20b95,000.00 by \u20b90.01. Remove \u20b90.01 of items, or present a mandate with a higher cap."
+      "detail": "Refused \u20b95,000.01 against mandate b7099e91. Cart total \u20b95,000.01 exceeds the mandate cap of \u20b95,000.00 by \u20b90.01. Remove \u20b90.01 of items, or present a mandate with a higher cap."
     },
     {
       "id": "B2",
       "class": "cap evasion",
       "attempt": "spend exactly the cap (must be ALLOWED -- inclusive)",
       "defended": true,
-      "detail": "Authorised \u20b95,000.00 against mandate a886ac10 held by attacker-agent, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
+      "detail": "Authorised \u20b95,000.00 against mandate 55e73793 held by attacker-agent, within its \u20b95,000.00 cap (exactly at the cap, which is inclusive)."
     },
     {
       "id": "B3",
       "class": "cap evasion",
       "attempt": "present a mandate carrying no amount_range at all",
       "defended": true,
-      "detail": "Refused \u20b91.00 against mandate 885bf60f. This mandate carries no payment.amount_range constraint, so it authorises no specific amount. A mandate without a cap is refused rather than treated as unlimited."
+      "detail": "Refused \u20b91.00 against mandate b336553c. This mandate carries no payment.amount_range constraint, so it authorises no specific amount. A mandate without a cap is refused rather than treated as unlimited."
     },
     {
       "id": "B4",
       "class": "cap evasion",
       "attempt": "price the cart in USD against an INR cap",
       "defended": true,
-      "detail": "Refused \u20b9100.00 against mandate 154e5587. This merchant settles only in INR; the cart is priced in USD. No conversion is performed. Re-price the cart in INR. The mandate authorises INR; this cart is priced in USD. No conversion is performed."
+      "detail": "Refused \u20b9100.00 against mandate 7b08e11f. This merchant settles only in INR; the cart is priced in USD. No conversion is performed. Re-price the cart in INR. The mandate authorises INR; this cart is priced in USD. No conversion is performed."
     },
     {
       "id": "B5",
       "class": "cap evasion",
       "attempt": "drain a budget with repeated under-cap purchases",
       "defended": true,
-      "detail": "Refused \u20b9900.00 against mandate 385e5c77. This mandate has a total budget of \u20b91,500.00, of which \u20b91,000.00 is already committed. \u20b9500.00 remains and this cart needs \u20b9900.00."
+      "detail": "Refused \u20b9900.00 against mandate 4448d66b. This mandate has a total budget of \u20b91,500.00, of which \u20b91,000.00 is already committed. \u20b9500.00 remains and this cart needs \u20b9900.00."
     },
     {
       "id": "B6",
       "class": "cap evasion",
       "attempt": "pay a merchant that is not on the allowed_payees list",
       "defended": true,
-      "detail": "Refused \u20b9100.00 against mandate 801ad5d9. 'acme-fasteners' is not in this mandate's allowed payees (some-other-shop)."
+      "detail": "Refused \u20b9100.00 against mandate 4f9d5925. 'acme-fasteners' is not in this mandate's allowed payees (some-other-shop)."
     },
     {
       "id": "C1",
       "class": "replay",
       "attempt": "present the same mandate and cart twice",
       "defended": true,
-      "detail": "Refused \u20b9500.00 against mandate 98dcdeac. This exact cart was already paid for under this mandate (reference pay_1). It has not been charged again. Issue a new mandate to buy the same items twice."
+      "detail": "Refused \u20b9500.00 against mandate 93f9a62c. This exact cart was already paid for under this mandate (reference pay_1). It has not been charged again. Issue a new mandate to buy the same items twice."
     },
     {
       "id": "C2",
@@ -119,7 +119,7 @@
       "class": "cart tampering",
       "attempt": "capture after the reservation TTL has lapsed",
       "defended": true,
-      "detail": "The reservation on q_bb7504c74bed4c36 expired at 1788079043 (now 1788079103). Stock has been released. Request a new quote."
+      "detail": "The reservation on q_90f09ac867f24a75 expired at 1788081925 (now 1788081985). Stock has been released. Request a new quote."
     },
     {
       "id": "D5",
@@ -245,21 +245,21 @@
       "class": "audit tampering",
       "attempt": "edit a record's payload directly in the database",
       "defended": true,
-      "detail": "1 break(s) detected: content was modified after writing: stored hash ece44f09bf56... but content hashes to f8edd4e46a0c..."
+      "detail": "1 break(s) detected: content was modified after writing: stored hash e574b63d73e0... but content hashes to cd608db0adff..."
     },
     {
       "id": "G2",
       "class": "audit tampering",
       "attempt": "delete an inconvenient refusal record",
       "defended": true,
-      "detail": "2 break(s): sequence jumped: expected 4, found 5. 1 record(s) deleted.; link broken: prev_hash b8b3716faa43... does not match the previous record's hash 1ab282898a42..."
+      "detail": "2 break(s): sequence jumped: expected 4, found 5. 1 record(s) deleted.; link broken: prev_hash 54600e6bec47... does not match the previous record's hash 665147333daa..."
     },
     {
       "id": "G3",
       "class": "audit tampering",
       "attempt": "edit a record AND recompute its hash to match",
       "defended": true,
-      "detail": "caught one link later at seq 4: link broken: prev_hash 9c74721a2485... does not match the previous record's hash ff8b3d540338..."
+      "detail": "caught one link later at seq 4: link broken: prev_hash 387384468260... does not match the previous record's hash 89bbdcec7615..."
     },
     {
       "id": "H1",
