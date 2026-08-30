@@ -193,7 +193,9 @@ ecosystem, and it belongs in the open rather than glossed over.
 | [`DECISIONS.md`](DECISIONS.md) | every real fork, what was rejected, why |
 | [`what-broke.md`](what-broke.md) | what went wrong, written the day it happened |
 | [`SECURITY.md`](SECURITY.md) | threat model and the limitations I know about |
-| `docs/research/` | per-phase verification, every claim with a source URL |
+| [`docs/pitch.md`](docs/pitch.md) | the locked problem statement, and the claims that are banned |
+| [`docs/PLAN.md`](docs/PLAN.md) | the build plan the phases were executed against |
+| `docs/research/` | per-phase verification, the protocol landscape, and the competitive read — every claim with a source URL |
 | `evidence/` | the numbers, each reproducible with one command |
 | `redteam/suite.py` | `python -m redteam.suite` |
 | `scripts/` | spikes, scorers, and the end-to-end demo |
