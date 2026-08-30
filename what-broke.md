@@ -268,3 +268,57 @@ green throughout and the tests all passed — `parse_delivery` is unit-tested th
 never touches a database. It only appeared because the manual probe checked what a *rejected*
 webhook returns, not just an accepted one. Error paths need exercising with the same care as
 success paths, and mine had a database write in it.
+
+---
+
+## A syntax error passed 179 tests
+
+**2026-08-30, while publishing payment terms to `llms.txt`.**
+
+A heredoc ate an escape and wrote a literal newline into a string literal in
+`vendable/publish/surfaces.py`. The file could not be imported at all. The full suite ran
+green immediately afterwards: **179 passed**.
+
+Nothing imported the module. `llms.txt`, the JSON-LD storefront and the `/.well-known`
+manifest — the three surfaces a buyer's agent reads *before* it calls a single tool — had no
+test touching them. The discovery layer was the least-tested code in a project whose entire
+pitch is "an agent finds this merchant and transacts".
+
+It surfaced by accident, from a manual check of what the new terms section actually rendered.
+Had that check been skipped, the first symptom would have been the server failing to start on
+camera.
+
+**Fixed:** `tests/test_surfaces.py`, starting with `test_every_surface_builds` — the trivial
+smoke test that would have caught it. It also pins the thing that actually matters: the margin
+floor and cost price appear on no published surface, while the MSMED statutory limit
+deliberately does, because one is a secret and the other is a rule.
+
+**The lesson is about the shape of the gap, not the typo.** A green suite measures the code it
+imports. 179 passing tests said nothing whatsoever about a module none of them loaded, and the
+number was reassuring enough that I nearly moved on.
+
+---
+
+## An evidence file that claimed determinism flickered between runs
+
+**2026-08-30.**
+
+`evidence/gate_matrix.md` opens with "Generated deterministically, so these numbers reproduce
+on any machine." Regenerating it after an unrelated change produced **61/62**, down from
+62/62 — a false reject on `EXP-1s-left`, a mandate minted with one second of validity left.
+
+Three consecutive runs on identical code gave 62, 61, 62.
+
+The case sampled `now` once at the top of the script and then built every mandate from it. A
+run that took longer than a second to reach the expiry group watched a one-second mandate
+expire underneath it. Nothing to do with the change being tested; it had been racing since the
+file was written, and had simply won every previous roll.
+
+**Fixed:** 30 seconds of headroom instead of 1. The boundary itself is still tested exactly by
+`just-expired` at one second the other side, so no coverage was lost — the flaky case was not
+even the one pinning the behaviour.
+
+**Why it mattered more than one test:** an evidence artifact is a claim, and this one asserted
+reproducibility in its own first paragraph. A judge who ran it twice would have caught the
+project contradicting itself. The number being *nearly* always right is exactly the property
+this repo argues against everywhere else.

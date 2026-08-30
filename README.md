@@ -55,14 +55,20 @@ payment leg; an OpenAI key adds ingestion and live negotiation.
 
 ## Where I chose NOT to use an LLM, and why
 
-**Three model calls exist in this system. Each has a deterministic verifier immediately
-downstream, and none of them can move money.**
+**Two model calls exist in this system. Each has a deterministic verifier immediately
+downstream, and neither can move money.**
 
 | the model does | a deterministic engine then decides |
 |---|---|
 | reads a messy PDF and reports what it found | `validate_product` decides which SKUs are sellable |
-| compiles plain-language trading rules | the merchant confirms before they go live |
 | proposes a concession and writes a sentence | `PolicyEngine` checks the number before it is uttered |
+
+A third was planned — compiling the merchant's plain-language trading rules into a
+`MerchantPolicy` for them to confirm — and was cut. The policy is a hand-written
+`fixtures/merchants/<id>/policy.json` instead, validated on load with unknown fields
+rejected. Cutting it removed convenience, not reasoning: the engine that enforces those
+rules is unchanged, and a compiler would only have written a file a merchant still has to
+read and approve.
 
 **Deliberately not an LLM:**
 
@@ -72,7 +78,7 @@ downstream, and none of them can move money.**
   any prompt, and fails closed on every ambiguity.
 - **The policy engine.** Margin floors, volume ladders, MOQ, territory — declared data
   evaluated as a pure function, so the same line always gets the same answer. That is what
-  makes 62 gate cases and 40 attacks reproducible rather than anecdotal.
+  makes 62 gate cases and 47 attacks reproducible rather than anecdotal.
 - **Catalog gap detection.** Whether a price is missing is a fact, not a judgement. A model
   asked to decide would sometimes hallucinate one.
 - **Catalog search.** Keyword matching, not embeddings. Semantic search would rank better on
@@ -92,9 +98,9 @@ Numbers I would defend in a room, including the unflattering ones.
 | what | result | where |
 |---|---|---|
 | Mandate gate, 62 generated cases | **62/62, zero false accepts** | [`evidence/gate_matrix.md`](evidence/gate_matrix.md) |
-| Red team, 40 attacks in 8 classes | **37 defended, 3 findings published** | [`evidence/redteam.md`](evidence/redteam.md) |
+| Red team, 47 attacks in 9 classes | **44 defended, 3 findings published** | [`evidence/redteam.md`](evidence/redteam.md) |
 | Extraction vs hand-labelled truth | **100% on every field that affects money** | [`evidence/extraction.md`](evidence/extraction.md) |
-| Test suite | 144 passing, no network, no credentials | `scripts/verify_offline.py` |
+| Test suite | 186 passing, no network, no credentials | `scripts/verify_offline.py` |
 
 **The three published findings are trade-offs, not accidents, and they deserve judging:**
 
@@ -121,7 +127,7 @@ four that changed the design:
   splitting published entitlement from discretionary authority.
 - **A false accept found by counting, not attacking.** The gate compared the mandate's
   currency to the cart's currency — but a buyer supplies both and can make them agree. The
-  confusion matrix caught what 40 hand-written attacks could not.
+  confusion matrix caught what 47 hand-written attacks could not.
 - **A 400 that arrived as a 500.** The webhook *rejection* path wrote to a locked SQLite file.
   The bug lived in the error path, which is why every test stayed green.
 
@@ -136,6 +142,53 @@ So a procurement agent shopping an Indian catalog through any of those standards
 it cannot actually buy at. Vendable emits both under a namespaced `vendable:` prefix alongside
 fully standard schema.org — namespaced rather than smuggled into schema.org's own vocabulary,
 because pretending `hsnCode` is schema.org would break other people's parsers.
+
+### Payment terms are half the negotiation
+
+In Indian B2B, *"kya rate hai"* and *"kitne din ka credit"* are one question, not two. Nobody
+pays the printed list price, and the number that gets agreed depends as much on when you pay
+as on how much you buy. `2/10 Net 30` — two percent off for settling inside ten days — is
+ordinary practice, and sellers routinely concede 60 or 90 days to close.
+
+So `payment_terms_days` is an argument to `request_quote` and `negotiate`, and the ladder is
+published in `get_policies` and `llms.txt`. Paying sooner earns a discount the same way a
+volume break does: automatically, because it is a declared rule, not something a buyer should
+have to haggle for.
+
+It is bound, too. The terms are inside the quote's `cart_hash`, so taking the early-payment
+price and then paying at 60 days is not a loophole — it is a different cart, and the capture
+is refused by the same tamper check that catches an edited unit price.
+
+### The statute no agentic-commerce protocol models
+
+Under **s.15 of the MSMED Act**, where the supplier is a Udyam-registered micro or small
+enterprise, the buyer must pay within **45 days** where a written agreement exists, or **15**
+where none does. Breach carries compound interest at **three times the RBI bank rate** (s.16),
+and since 1 April 2024 **s.43B(h) defers the buyer's own deduction** on the expense until it
+is actually paid.
+
+The consequence is the interesting part: a buyer's agent that negotiates Net 90 with such a
+supplier wins a discount that costs its principal more than it saves, and creates a statutory
+liability nobody at the table modelled. So Vendable refuses those terms rather than pricing
+them, and says why:
+
+> Net 60 cannot be agreed. This supplier is a Udyam-registered small manufacturer, so under
+> s.15 of the MSMED Act a written agreement caps the period at 45 days. Paying later obliges
+> the buyer to compound interest at three times the RBI bank rate under s.16, and defers the
+> buyer's own deduction on the expense under s.43B(h) until it is actually paid. Ask for Net
+> 45 or shorter.
+
+**The exclusions are encoded as carefully as the rule**, because a guard that fired on every
+Indian merchant would refuse business the law permits. Medium enterprises are outside the
+protection. Udyam **traders** are outside s.43B(h), which reaches manufacturers and service
+providers. `acme-fasteners` is a registered small *trader* and is therefore unconstrained;
+`shakti-forgings` is a registered small *manufacturer* and is capped at 45 days. Both ship in
+`fixtures/merchants/`, and the difference is the demo.
+
+None of this is an LLM. It is `MerchantPolicy.statutory_max_credit_days()` — the whole statute
+as a pure function, seven lines and no model call. OpenAI's ACP documentation states plainly
+that "returns, tax, and fraud modeling are out of scope"; UCP and AP2 have no notion of
+statutory payment terms either.
 
 ## What is claimed, and what is not
 
@@ -198,13 +251,14 @@ ecosystem, and it belongs in the open rather than glossed over.
 | `docs/research/` | per-phase verification, the protocol landscape, and the competitive read — every claim with a source URL |
 | `evidence/` | the numbers, each reproducible with one command |
 | `redteam/suite.py` | `python -m redteam.suite` |
+| `fixtures/merchants/` | two merchants, each a `catalog.json` beside a `policy.json` |
 | `scripts/` | spikes, scorers, and the end-to-end demo |
 
 ## Verify it yourself
 
 ```bash
 .venv/Scripts/python scripts/verify_offline.py    # tests pass with every socket blocked
-.venv/Scripts/python -m redteam.suite             # 40 attacks
+.venv/Scripts/python -m redteam.suite             # 47 attacks
 .venv/Scripts/python scripts/gate_matrix.py       # 62 gate cases
 .venv/Scripts/python scripts/score_extraction.py  # extraction vs ground truth (needs a key)
 .venv/Scripts/python scripts/demo_buy.py          # the full buy, over the wire

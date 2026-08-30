@@ -50,6 +50,8 @@ but one that is already the attacker and demands 95% off on every turn. The floo
 | settlement currency checked against merchant config | a self-consistent foreign-currency cart | **hard** — added after a false accept |
 | `PRIMARY KEY (jti, cart_hash)` in the spend ledger | replay, double charge, concurrent capture | **hard** — structural, not advisory |
 | cart re-hashed at capture | tampering between authorisation and payment | **hard** |
+| payment terms inside the cart hash | taking an early-payment price and then paying late | **hard** — the same check, and it costs nothing extra |
+| MSMED s.15 limit as a hard gate | credit terms neither party is lawfully able to agree | **hard** — declared data, evaluated before pricing |
 | HMAC-SHA256 over raw body, constant-time | forged webhooks, timing oracles | **hard** |
 | `X-Razorpay-Event-Id` de-duplication | replayed deliveries, and ordinary retries | **hard** |
 | hash-chained audit | tampering with the record afterwards | **detection, not prevention** |
@@ -59,6 +61,20 @@ but one that is already the attacker and demands 95% off on every turn. The floo
 
 The last two are listed as mitigations deliberately. A prompt filter is not a security
 boundary, and saying otherwise would be the most dangerous sentence in this document.
+
+**A note on the statutory gate.** It is listed here because it is enforced the way the other
+hard controls are — declared data, checked before any pricing, unreachable by prompt — but it
+protects a different party. Every other row protects the merchant from the buyer. s.15
+protects the *buyer* from agreeing terms that trigger compound interest at three times the RBI
+bank rate and defer its own tax deduction under s.43B(h). An autonomous purchasing agent is
+exactly the sort of counterparty that would accept a longer credit period as a win. The
+merchant's own `max_credit_days` is a separate, softer ceiling: that one is the merchant's to
+waive, and the statute is not.
+
+Worth stating plainly: this is a *correctness* control, not a compliance certification.
+Vendable enforces the limit as configured. Whether a given merchant is truly Udyam-registered,
+and in which class and activity, is asserted in `policy.json` and is not verified against the
+Udyam register — a merchant who misdeclares gets an answer matching their declaration.
 
 ## Known limitations, published rather than hidden
 

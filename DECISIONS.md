@@ -173,3 +173,86 @@ and an undocumented answer here is indistinguishable from an accident. Tests
 `test_gate_allows_amount_equal_to_cap` and `test_gate_refuses_one_minor_unit_over_cap` pin it.
 
 **All money is handled in integer minor units (paise).** No float ever touches an amount.
+
+---
+
+## D-008 — Payment terms are a price lever, and an entitlement rather than a concession
+**2026-08-30**
+
+The policy engine modelled margin floor, volume ladder, stock-age ladder and territory. In
+Indian B2B that is half a deal: *"kya rate hai"* and *"kitne din ka credit"* are one
+negotiation, and `2/10 Net 30` is ordinary practice rather than an exotic term.
+
+**Chosen:** `payment_terms_ladder` on `MerchantPolicy`, and `payment_terms_days` on
+`LineRequest`, `request_quote` and `negotiate`.
+
+Two sub-decisions worth pinning:
+
+**The terms discount is *entitled*, not discretionary.** It joins the volume break in
+`entitled_bp`, so a plain `request_quote` at Net 10 gets it without haggling. The rule already
+in force is that anything published in `get_policies` is owed — withholding it until someone
+asks would make the published policy a lie. The stock-age allowance remains the only
+discretionary authority, and therefore the only thing `negotiate` can actually win.
+
+**The rung is earned by falling inside a window, not by clearing a threshold.** `_grant_terms`
+is deliberately the inverse of `_grant`: `days <= rung.within_days`, maximised across every
+qualifying rung. This guarantees paying sooner is never worth less than paying later, whatever
+order a merchant declares the rungs in. Getting this backwards would produce a storefront that
+punishes early payment, which no buyer's agent would expect and no merchant would intend.
+
+**Rejected:** letting the negotiation model propose terms. Its JSON contract stays
+`{"concede_pct", "message"}`. Terms come from the buyer and are priced by the engine. Widening
+the model's output to include a credit period would put a legally-consequential number
+(see D-009) inside the one component that can be talked to.
+
+---
+
+## D-009 — MSMED s.15 is a hard gate, and its exclusions are encoded as carefully as the rule
+**2026-08-30**
+
+Under s.15 of the MSMED Act, where the supplier is a Udyam-registered micro or small
+enterprise, payment cannot be deferred beyond 45 days with a written agreement or 15 without
+one. s.16 charges compound interest at three times the RBI bank rate on breach, and s.43B(h)
+defers the *buyer's* own deduction until actual payment.
+
+This inverts who a control protects. Every other rule in the engine protects the merchant from
+the buyer. This one protects an autonomous purchasing agent from winning a longer credit
+period and booking it as a saving.
+
+**Chosen:** `MerchantPolicy.statutory_max_credit_days()` — the statute as a pure function —
+checked beside the territory gate, before any pricing. No order size and no offered price
+rescues it, and the refusal names the section, the consequence and a compliant alternative.
+
+**The exclusions are the load-bearing part.** Medium enterprises are outside the protection,
+and Udyam *traders* are outside s.43B(h), which reaches manufacturers and service providers. A
+guard that fired on every Indian merchant would refuse business the law permits, which is a
+worse failure than not having the guard: it would cost the merchant real sales while looking
+like diligence. `acme-fasteners` is a registered small trader and is unconstrained;
+`shakti-forgings` is a registered small manufacturer and is capped at 45. That difference is
+the demo, and `test_a_udyam_trader_is_not_constrained` is the test that matters most.
+
+**Not claimed:** compliance certification. The registration, class and activity are asserted in
+`policy.json` and are not checked against the Udyam register. A merchant who misdeclares gets
+an answer that matches their declaration.
+
+**Rejected:** deriving the limit from an LLM reading the merchant's onboarding text. This is
+four booleans and a comparison. A model that is right almost always is not what belongs in
+front of a statutory deadline — the same argument as the mandate gate in D-007.
+
+---
+
+## D-010 — Every catalog read is scoped to one merchant
+**2026-08-30**
+
+The `products` table carried a `merchant_id` column and an index on it from the first schema,
+and every read ignored both. Invisible with one merchant; a correctness bug the moment a
+second existed. Two storefronts sharing one SQLite file each served the other's SKUs, priced
+against their own policy and margin floor — found by a smoke test reporting 41 SKUs for a
+merchant whose catalog has 17.
+
+**Chosen:** `Catalog._scope()`, applied to `get`, `all`, `stock_map`, `__len__` and `search`.
+An empty `merchant_id` still means "everything", which is what the CLI and the test fixtures
+construct, so nothing that worked before changed behaviour.
+
+Worth recording because the column existing made the bug *look* handled at review time. A
+schema that anticipates a requirement is not the same as code that enforces it.
