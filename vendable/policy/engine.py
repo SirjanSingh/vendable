@@ -43,6 +43,8 @@ class ViolationCode(str, enum.Enum):
     TERRITORY_NOT_ALLOWED = "territory_not_allowed"
     NOT_SELLABLE = "not_sellable"
     NO_COST_BASIS = "no_cost_basis"
+    LIST_BELOW_FLOOR = "list_below_floor"
+    """The SKU's own list price does not clear the margin floor. Nothing sells it."""
     CREDIT_TERMS_EXCEEDED = "credit_terms_exceeded"
     """The merchant's own commercial ceiling on how long it will wait to be paid."""
     MSMED_LIMIT_EXCEEDED = "msmed_limit_exceeded"
@@ -437,8 +439,34 @@ class PolicyEngine:
         entitled_price = max(
             margin_floor_price, list_price - (list_price * entitled_bp) // BP_SCALE
         )
-        # Never quote above list -- if the floor computes higher than list, the SKU is
-        # mispriced and the gap validator has already flagged it.
+        # When the margin floor computes ABOVE list price, the SKU cannot be sold within
+        # this policy at any quantity, on any terms, at any discount -- list price is the
+        # most anyone will ever pay, and even that loses money.
+        #
+        # This used to clamp silently to list and carry on, with a comment claiming the gap
+        # validator "has already flagged it". It had: `validate_product` returns a blocking
+        # gap for exactly this. But a gap is a line in a report, and nothing connected that
+        # report to the sales path -- so the engine approved PIPE-GI-40 at -11.79% against a
+        # 15% floor, ~Rs 230 lost per unit, with `violations` empty. Found by the property
+        # sweep in scripts/negotiation_invariants.py rather than by any hand-written attack,
+        # which is the second time counting has beaten attacking in this repo.
+        if list_price > 0 and product.cost_price_paise > 0 and margin_floor_price > list_price:
+            violations.append(
+                Violation(
+                    code=ViolationCode.LIST_BELOW_FLOOR,
+                    message=(
+                        f"{product.sku} cannot be sold. Its list price of "
+                        f"{format_inr(list_price)} does not clear the "
+                        f"{floor_bp / 100:.2f}% margin floor on a cost of "
+                        f"{format_inr(product.cost_price_paise)} -- every sale loses "
+                        f"{format_inr(product.cost_price_paise - list_price)} per unit "
+                        "before any discount. No quantity or payment term changes this. "
+                        f"The merchant must reprice it to at least "
+                        f"{format_inr(margin_floor_price)}."
+                    ),
+                )
+            )
+
         best_price = min(best_price, list_price) if list_price > 0 else best_price
         entitled_price = min(entitled_price, list_price) if list_price > 0 else entitled_price
 

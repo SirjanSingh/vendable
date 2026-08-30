@@ -154,3 +154,55 @@ def test_category_floor_overrides_the_global_one(engine, bolt, policy):
     policy.category_margin_floor_bp = {"fasteners": 2800}
     d = PolicyEngine(policy).evaluate(bolt, ask(500))
     assert margin_bp(d.best_unit_price_paise, bolt.cost_price_paise) >= 2800
+
+
+# --- a SKU that cannot be sold within policy at any price -------------------------
+#
+# Found by scripts/negotiation_invariants.py, not by a hand-written attack. The engine
+# computed a margin floor above list price, then clamped the answer back down to list --
+# silently selling below cost while reporting no violations at all.
+
+
+def _loss_maker(bolt):
+    """Cost above list. The catalog fixture has a real one: PIPE-GI-40, where cost was
+    entered per case and price per unit."""
+    bolt.list_price_paise = rupees("195000")
+    bolt.cost_price_paise = rupees("218000")
+    return bolt
+
+
+def test_a_sku_priced_below_cost_is_refused(engine, bolt):
+    d = engine.evaluate(_loss_maker(bolt), ask(10))
+    assert not d.allowed
+    assert ViolationCode.LIST_BELOW_FLOOR in {v.code for v in d.violations}
+
+
+def test_the_refusal_names_the_price_that_would_work(engine, bolt):
+    """Directed at the merchant, not the buyer: no quantity or payment term fixes this,
+    so a refusal that only says no would send the buyer round the loop for nothing."""
+    d = engine.evaluate(_loss_maker(bolt), ask(10))
+    msg = next(v for v in d.violations if v.code is ViolationCode.LIST_BELOW_FLOOR).message
+    assert "2,56,470" in msg or "256470" in msg.replace(",", "")  # the repriced floor
+    assert "cannot" in msg.lower()
+
+
+def test_no_quantity_or_discount_rescues_it(engine, bolt):
+    """It is a gate. The volume ladder must not be able to reach past it."""
+    loss = _loss_maker(bolt)
+    for qty in (10, 100, 500, 5000):
+        assert not engine.evaluate(loss, ask(qty)).allowed
+
+
+def test_a_healthy_sku_is_untouched(engine, bolt):
+    """The guard must not fire on the ordinary case -- bolt is Rs 100 list on Rs 70 cost."""
+    assert engine.evaluate(bolt, ask(500)).allowed
+
+
+def test_a_sku_with_no_cost_on_file_still_uses_the_existing_refusal(engine, bolt):
+    """NO_COST_BASIS already covers this and means something different: unknown, not
+    negative. The new gate must not steal that case."""
+    bolt.cost_price_paise = 0
+    d = engine.evaluate(bolt, ask(10))
+    codes = {v.code for v in d.violations}
+    assert ViolationCode.NO_COST_BASIS in codes
+    assert ViolationCode.LIST_BELOW_FLOOR not in codes

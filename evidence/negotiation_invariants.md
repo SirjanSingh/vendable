@@ -6,7 +6,7 @@ This sweeps the deterministic `PolicyEngine` -- no LLM, no network -- across eve
 
 **What this does not prove:** anything about the LLM that writes the negotiation sentence. The model can still misread a policy, propose a price the engine then rejects, waste a turn, or phrase a refusal badly -- none of that is measured here. This is the floor the model is not allowed to fall through, not a grade on how well it walks the floor.
 
-**5292 line evaluations, 35856 invariant checks, 20 violations.**
+**5292 line evaluations, 35856 invariant checks, 0 violations.**
 
 ## Summary
 
@@ -15,35 +15,14 @@ This sweeps the deterministic `PolicyEngine` -- no LLM, no network -- across eve
 | never_worse_than_asking | 5292 | 0 |
 | pay_sooner_never_costs_more | 4486 | 0 |
 | more_never_costs_more_per_unit | 4910 | 0 |
-| clears_margin_floor | 5292 | 20 |
+| clears_margin_floor | 5292 | 0 |
 | never_exceeds_list | 5292 | 0 |
 | refusal_explains_itself | 5292 | 0 |
 | deterministic | 5292 | 0 |
 
 ## Violations
 
-| invariant | merchant | detail |
-|---|---|---|
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=5 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=5 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=5 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=5 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=5 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=6 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=6 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=6 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=6 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=6 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=89 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=89 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=89 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=89 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=89 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=90 terms=0: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=90 terms=1: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=90 terms=10: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=90 terms=30: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
-| clears_margin_floor | acme-fasteners | PIPE-GI-40 qty=90 terms=60: margin=-1179bp < floor=1500bp at best=195000 (cost=218000) |
+None. Every one of the checks above held across every SKU, quantity, and payment-terms window swept.
 
 ## Invariants checked
 
