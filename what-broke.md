@@ -493,3 +493,46 @@ comment fails silently in exactly the situations a test suite does not cover**: 
 `:memory:` databases, which `db.connect` deliberately never shares, so no test could have
 observed the shared-connection behaviour at all. The one place it bites is a long-lived process
 with more than one store open, which is every deployment and no test.
+
+## 2026-09-01 · A script that could not be imported, rendering frames correctly
+
+Building part one of the pitch video, `scripts/render_film.py` gained a block that dumps the
+page's cue table to `docs/video/cues.json`. I wrote the edit through a shell heredoc, and an
+escaped newline in it became a real one:
+
+```python
+json.dumps({"fps": args.fps, "total": total, "cues": cues}, indent=2) + "
+",
+```
+
+The string literal is now split across two lines and the file does not parse. From that moment
+`render_film.py` was not a valid Python module.
+
+**What it looked like instead:** a render in progress, writing correct 1920x1080 frames to G:
+at the expected rate, roughly two thousand of them. The background process had imported the
+module *before* the edit, so it was executing the previous version out of memory and had no
+reason to care that the file on disk had stopped parsing. Every signal available said the
+script was fine, because the script *was* fine — the one that was running.
+
+**What did not catch it:** running the thing. Also `ruff check scripts/render_film.py`, which
+I ran immediately after the edit and which reported clean.
+
+**What did:** `ruff check .` across the whole repo reporting **17 errors against a baseline of
+14**. Not the error text, which I had not read yet. The count, compared against a number I
+already expected.
+
+**Fix:** rebuild the literal without writing the escape through a shell heredoc at all. The
+same shell layer has now mangled a Python string once and eaten a heredoc entirely, earlier in
+this build.
+
+**Why it belongs here:** it is the fifth instance of the pattern the four entries above share,
+and the cleanest one. The output was not merely plausible, it was *correct* — real frames, at
+the right rate, from a file that could not be imported. Asking "what would this look like if
+the thing I am checking were broken?" gives the answer "exactly like this", which is the
+signal that the check proves nothing.
+
+The generalisation the earlier entries were circling: **a check run against a process that
+loaded the code earlier is not a check on the code.** It is the same boundary error as testing
+a storefront and reporting on a transport. The fix in both cases is to find an assertion that
+sits downstream of everything that could have changed, and here that was a whole-repo count
+with a remembered baseline.
