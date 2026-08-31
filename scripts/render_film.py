@@ -22,6 +22,7 @@ import argparse
 import functools
 import hashlib
 import http.server
+import json
 import os
 import socketserver
 import threading
@@ -113,6 +114,16 @@ def main() -> int:
             page.wait_for_timeout(600)
 
             total = page.evaluate("window.TOTAL")
+
+            # Dump the cue table the page is actually using. build_film.py needs the same
+            # numbers to place the voice files, and a second hand-maintained copy of them
+            # would drift the moment a cue is re-timed to the real audio. The page is the
+            # authority; this file is derived from it on every run.
+            cues = page.evaluate("window.CUES")
+            (DOCS / "video" / "cues.json").write_text(
+                json.dumps({"fps": args.fps, "total": total, "cues": cues}, indent=2) + "\n",
+                encoding="utf-8",
+            )
             if errors:
                 print("page errors before rendering:", *errors, sep="\n  ")
                 return 1

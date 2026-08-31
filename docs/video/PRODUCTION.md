@@ -73,6 +73,18 @@ On-screen type is where this kind of video usually fails. Rules, not preferences
 - Contrast is already handled by the console palette: `--amber #E0A458` and `--b #B6BEC8` on
   `--ink #080A0E` both clear WCAG AA at these sizes.
 
+## Why not Remotion
+
+Considered and declined for this submission, not on merit. Remotion renders frame by frame
+and is deterministic in the same way, so it offers no correctness advantage over the page
+here, and it costs a Node plus React install with a build step on drives at 97% and 99% full
+in a repo with no JavaScript tooling at all. Playwright was already a dependency, so the
+renderer is a hundred lines and installs nothing.
+
+Where Remotion would genuinely win is step 8: matching cue boundaries to the real voice
+durations, which its Studio does against a waveform. If that step turns painful, reconsider
+there. Not before.
+
 ## Paths
 
 ```
@@ -96,10 +108,10 @@ G:\vendable-video\               (working files, never committed)
 ### Session 1 — no Sirjan, no paid key needed
 - [x] Schedule a session checkpoint so unfinished work is committed, not lost
 - [x] This file, committed before any asset work
-- [ ] `docs/video/script.md`
-- [ ] Capture real assets from a live run (demo output, MSMED string, console shots)
-- [ ] `film.html` with deterministic `seek(t)`
-- [ ] `scripts/render_film.py`
+- [x] `docs/video/script.md`
+- [x] Capture real assets from a live run (demo output, MSMED string, console shots)
+- [x] `film.html` with deterministic `seek(t)` — proved by `render_film.py --check`
+- [x] `scripts/render_film.py` and `scripts/build_film.py`
 - [ ] Render part 1 silent, and **watch all three minutes**
 
 ### Session 2 — needs Sirjan
