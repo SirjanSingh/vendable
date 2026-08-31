@@ -7,13 +7,16 @@ does not. Anyone picking this up cold reads the next block and starts there.
 
 ## NEXT ACTION
 
-> **Mount G:.** Then run, from `D:\projs\vendable`:
+> **Watch `G:endable-video\out\part1_silent.mp4` end to end.** Three minutes, no sound
+> yet. It is 5,400 frames at 30fps, exactly 180.00s, 9 MB.
 >
-> ```
-> .venv/Scripts/python.exe scripts/render_film.py --out G:/vendable-video/frames
-> ```
+> I rendered it, probed stills from every scene, and sampled frames back out of the encoded
+> file to confirm the encode is clean. I have **not** watched it continuously, and cannot:
+> pacing, whether a block holds long enough to read twice, and whether a transition lands are
+> judgements that need a person and a play button. Note anything that drags or rushes, because
+> the next step re-times the cues anyway and that is the cheap moment to fix pacing.
 >
-> Nothing before that step is outstanding. See the checklist for what is already done.
+> Then, in order: audition the three voices on cue [1], generate `vo_01..06`, and re-time.
 
 **Blocked on Sirjan:** G: mounted · an ElevenLabs key in `.env` · the OBS take for part 2.
 
@@ -96,7 +99,7 @@ D:\projs\vendable\docs\video\
 
 G:\vendable-video\               (working files, never committed)
   raw\      OBS takes, vo_01..06.mp3
-  frames\   ~5400 JPEGs at 30fps, ~1.3 GB
+  frames\   5,400 JPEGs at 30fps, 5.3 GB (G: had 52 GB free)
   out\      part1.mp4, master.mp4, upload.mp4
 ```
 
@@ -112,9 +115,12 @@ G:\vendable-video\               (working files, never committed)
 - [x] Capture real assets from a live run (demo output, MSMED string, console shots)
 - [x] `film.html` with deterministic `seek(t)` — proved by `render_film.py --check`
 - [x] `scripts/render_film.py` and `scripts/build_film.py`
-- [ ] Render part 1 silent, and **watch all three minutes**
+- [x] Render part 1 silent — `out/part1_silent.mp4`, 180.00s, 5,400 frames
+- [ ] **Watch all three minutes** (needs a person; see NEXT ACTION)
 
 ### Session 2 — needs Sirjan
+
+Re-rendering all 5,400 frames takes about 19 minutes. Budget for it after re-timing.
 - [ ] Audition Raju / Monika Sogam / Adam on cue [1], pick one
 - [ ] Generate `vo_01..06.mp3`, one file per cue so a bad read is re-rendered alone
 - [ ] Measure real VO durations, re-time the cue boundaries in `film.html`, re-render
