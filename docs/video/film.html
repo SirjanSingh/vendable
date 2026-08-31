@@ -206,6 +206,7 @@ const CUES = [
 ];
 const TOTAL = CUES.reduce((n, c) => Math.max(n, c.at + c.dur), 0);
 window.TOTAL = TOTAL;
+window.CUES = CUES;
 
 /* ===================== pure helpers ===================================== */
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
