@@ -18,7 +18,8 @@ does not. Anyone picking this up cold reads the next block and starts there.
 >
 > Then, in order: audition the three voices on cue [1], generate `vo_01..06`, and re-time.
 
-**Blocked on Sirjan:** G: mounted · an ElevenLabs key in `.env` · the OBS take for part 2.
+**Blocked on Sirjan:** an ElevenLabs key in `.env` · the OBS take for part 2 · and
+re-mounting G: if it has been unplugged since (frames and cuts live there).
 
 ---
 
