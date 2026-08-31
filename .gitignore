@@ -23,3 +23,7 @@ evidence/raw/
 
 # generated mandate signing key
 .vendable/
+
+# Video production: regenerate with `verify_console.py --shots docs/video/assets/console`.
+# ~9 MB of PNGs; the command is committed, the pixels are not.
+docs/video/assets/console/

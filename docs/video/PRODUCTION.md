@@ -51,6 +51,28 @@ Seam line, spoken: *"That is the claim. Here is me running it."*
   Every animation state is a pure function of `t`. If the same `t` stops producing the same
   pixels, the frames drift against the voice track and the whole timeline is wrong.
 
+## Typography (locked)
+
+On-screen type is where this kind of video usually fails. Rules, not preferences:
+
+- **Sentence case for everything that is prose.** All caps costs 10-15% reading speed, because
+  identical letter heights turn every word into the same rectangle and force letter-by-letter
+  reading. It also reads as shouting. No Title Case either; it is a headline convention doing
+  nothing here.
+- **ALL CAPS only for stamps**: `REFUSED`, `INTACT`, `AUTHORISED`. Three to nine characters,
+  tracked +0.08em, never a sentence.
+- **Size floor: 28px at 1920x1080** for body, which is ~2.6% of frame height and survives a
+  phone at 360p. Headlines 64-96px. Nothing smaller than 24px ever.
+- **Line length under 46 characters** for the serif statements. Long measures are unreadable in
+  motion because the eye has to track back.
+- **Twelve words maximum on screen at once**, and each block holds for at least 4 seconds.
+  On-screen reading runs ~3.5 words/second, and the viewer must be able to read it twice.
+- **Do not screenshot the terminal.** Re-typeset its real text as HTML at 28px+. A screenshot of
+  a real 12pt terminal is destroyed by YouTube's compression: thin mono glyphs are exactly what
+  the encoder throws away. Same characters, legible.
+- Contrast is already handled by the console palette: `--amber #E0A458` and `--b #B6BEC8` on
+  `--ink #080A0E` both clear WCAG AA at these sizes.
+
 ## Paths
 
 ```
