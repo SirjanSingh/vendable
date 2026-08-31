@@ -39,6 +39,10 @@ DOCS = REPO / "docs"
 
 WIDTH, HEIGHT, FPS = 1920, 1080, 30
 
+# On-screen reading runs at roughly 3.5 words a second, and a block the viewer cannot read
+# twice is a block they did not read. Both numbers come from docs/video/PRODUCTION.md.
+READ_WPS, MIN_DWELL = 3.5, 4.0
+
 # Stills that between them touch every scene and every animated transition, for eyeballing a
 # design change without paying for a full render.
 PROBE_TIMES = (
@@ -86,6 +90,11 @@ def main() -> int:
         "--check",
         action="store_true",
         help="assert seek(t) is a pure function of t, then exit",
+    )
+    ap.add_argument(
+        "--pacing",
+        action="store_true",
+        help="report reading load per cue, then exit",
     )
     ap.add_argument("--start", type=float, default=0.0, help="first t, seconds")
     ap.add_argument("--end", type=float, default=None, help="last t, seconds")
@@ -143,6 +152,46 @@ def main() -> int:
                 browser.close()
                 return 0 if ok else 1
 
+            if args.pacing:
+                # Two of the typography rules in PRODUCTION.md are arithmetic: at most about
+                # twelve words on screen at once, and every block held long enough to read at
+                # READ_WPS. Pacing as an experience still needs a person; this is only the
+                # part that does not.
+                print(f"{'cue':<5}{'dur':>6}{'peak words':>12}{'read s':>9}{'dwell':>8}   verdict")
+                flagged = []
+                for cue in cues:
+                    peak, last_growth, prev = 0, cue["at"], -1
+                    t = cue["at"]
+                    while t < cue["at"] + cue["dur"]:
+                        page.evaluate("t => window.seek(t)", t)
+                        txt = page.evaluate(
+                            "() => { const s = document.querySelector('.scene.on');"
+                            " return s ? s.innerText : ''; }"
+                        )
+                        n = len(txt.split())
+                        if n > prev:
+                            last_growth = t
+                        prev, peak = n, max(peak, n)
+                        t += 0.5
+
+                    dwell = (cue["at"] + cue["dur"]) - last_growth
+                    need = peak / READ_WPS
+                    why = []
+                    if dwell < MIN_DWELL:
+                        why.append(f"final block held {dwell:.1f}s, under {MIN_DWELL}s")
+                    if need > cue["dur"]:
+                        why.append("more text than there is time to read it")
+                    if why:
+                        flagged.append(cue["id"])
+                    print(
+                        f"{cue['id']:<5}{cue['dur']:>6}{peak:>12}{need:>9.1f}{dwell:>8.1f}"
+                        f"   {'; '.join(why) or 'ok'}"
+                    )
+                print()
+                print("scenes to look at: " + (", ".join(flagged) or "none"))
+                browser.close()
+                return 1 if flagged else 0
+
             if args.probe:
                 for t in PROBE_TIMES:
                     if t > total:
@@ -162,6 +211,16 @@ def main() -> int:
                             f"  {i - first:>5}/{last - first}  {pct:5.1f}%  t={i / args.fps:6.2f}s"
                         )
                 print(f"{last - first} frames -> {out}")
+
+                # Frames are written by index and overwrite in place, so a re-timed film
+                # that is SHORTER than the last render leaves the old tail on disk and
+                # build_film.py globs it straight back in. The result plays fine and is
+                # silently too long, which is the failure mode this repo keeps finding.
+                stale = [f for f in out.glob("f*.jpg") if int(f.stem[1:]) >= last]
+                for f in stale:
+                    f.unlink()
+                if stale:
+                    print(f"removed {len(stale)} stale frames from a longer previous render")
 
             if errors:
                 print("page errors DURING rendering:", *errors, sep="\n  ")

@@ -8,7 +8,7 @@ does not. Anyone picking this up cold reads the next block and starts there.
 ## NEXT ACTION
 
 > **Watch `G:/vendable-video/out/part1_silent.mp4` end to end.** Three minutes, no sound
-> yet. It is 5,400 frames at 30fps, exactly 180.00s, 9 MB.
+> yet. It is 5,580 frames at 30fps, exactly 186.00s.
 >
 > I rendered it, probed stills from every scene, and sampled frames back out of the encoded
 > file to confirm the encode is clean. I have **not** watched it continuously, and cannot:
@@ -115,7 +115,7 @@ G:\vendable-video\               (working files, never committed)
 - [x] Capture real assets from a live run (demo output, MSMED string, console shots)
 - [x] `film.html` with deterministic `seek(t)` — proved by `render_film.py --check`
 - [x] `scripts/render_film.py` and `scripts/build_film.py`
-- [x] Render part 1 silent — `out/part1_silent.mp4`, 180.00s, 5,400 frames
+- [x] Render part 1 silent — `out/part1_silent.mp4`, 186.00s, 5,580 frames
 - [ ] **Watch all three minutes** (needs a person; see NEXT ACTION)
 
 ### Session 2 — needs Sirjan
@@ -156,6 +156,21 @@ three, nothing deployed), then one sentence on the `ToolError` bug, because the 
 
 **Record a clean take early.** There is no time to discover on the 4th that the only take has
 a stutter at 0:40.
+
+## Pacing, measured
+
+Two of the typography rules are arithmetic and can be checked without watching: at most about
+twelve words on screen at once, and every block held long enough to read at ~3.5 words/second.
+The check walks each cue, records the peak visible word count and the dwell of the final block,
+and it caught a real problem: **scene 1 asked for 89 words of statute in a 22-second scene**,
+needing 25 seconds to read, with the type-on finishing only 7.5 seconds before the cut.
+
+Scene 1 is now 28 seconds and finishes typing at 11.0s, so the dwell is 17 seconds. All six
+scenes pass. Total picture is **186s**, which leaves 114s for part two inside the 300s cap.
+
+What this does **not** check is pacing as an experience: whether a scene drags, whether a
+transition lands, whether the whole thing holds attention for three minutes. That still needs
+a person and a play button.
 
 ## Verification (nothing is done because it was generated)
 

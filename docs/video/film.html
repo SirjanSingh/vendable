@@ -197,12 +197,12 @@ html, body { margin: 0; padding: 0; background: var(--ink); }
    measured. Re-time them to the real audio, then re-render. Changing a
    duration here is the only supported way to change the cut. */
 const CUES = [
-  { id: "s1", at:   0, dur: 22 },
-  { id: "s2", at:  22, dur: 33 },
-  { id: "s3", at:  55, dur: 35 },
-  { id: "s4", at:  90, dur: 35 },
-  { id: "s5", at: 125, dur: 40 },
-  { id: "s6", at: 165, dur: 15 },
+  { id: "s1", at:   0, dur: 28 },
+  { id: "s2", at:  28, dur: 33 },
+  { id: "s3", at:  61, dur: 35 },
+  { id: "s4", at:  96, dur: 35 },
+  { id: "s5", at: 131, dur: 40 },
+  { id: "s6", at: 171, dur: 15 },
 ];
 const TOTAL = CUES.reduce((n, c) => Math.max(n, c.at + c.dur), 0);
 window.TOTAL = TOTAL;
@@ -332,15 +332,15 @@ function scene1(s) {
   enter($("#s1 .meta"), s, 0.2);
   enter($("#s1 .req"), s, 1.1);
 
-  const prog = p(s, 2.6, 14.6);
+  const prog = p(s, 2.4, 11.0);
   $("#s1txt").textContent = REFUSAL.slice(0, Math.floor(prog * REFUSAL.length));
   /* the caret blinks off a floor of t, not a CSS animation, so it is
      reproducible frame for frame */
   const typing = prog > 0 && prog < 1;
   $("#s1car").style.opacity = typing ? 1 : (prog >= 1 && Math.floor(s * 1.6) % 2 === 0 ? 0.9 : 0);
 
-  enter($("#s1 .stamp"), s, 14.8, 0);
-  enter($("#s1 .tail"), s, 16.6);
+  enter($("#s1 .stamp"), s, 11.2, 0);
+  enter($("#s1 .tail"), s, 12.8);
 }
 
 function scene2(s) {
