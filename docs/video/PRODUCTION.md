@@ -7,7 +7,7 @@ does not. Anyone picking this up cold reads the next block and starts there.
 
 ## NEXT ACTION
 
-> **Watch `G:endable-video\out\part1_silent.mp4` end to end.** Three minutes, no sound
+> **Watch `G:/vendable-video/out/part1_silent.mp4` end to end.** Three minutes, no sound
 > yet. It is 5,400 frames at 30fps, exactly 180.00s, 9 MB.
 >
 > I rendered it, probed stills from every scene, and sampled frames back out of the encoded
