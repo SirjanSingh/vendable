@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vendable — part one</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<!-- =========================================================================
+     Vendable, part one of the pitch video. 0:00 to 3:00, no voice on this
+     page: it renders picture only, and `scripts/render_film.py` steps it.
+
+     THE ONE RULE: every visual state is a pure function of `t`.
+
+     No CSS transitions, no animations, no requestAnimationFrame, no Date.now.
+     `seek(42.0)` must paint identical pixels every time it is called, on any
+     machine, in any order. The renderer steps t in 1/30s increments and
+     screenshots each one; if a single property is driven by wall-clock time
+     instead of by `t`, the frames drift against the voice track and the whole
+     three minutes has to be recut. It will also look fine in a spot check,
+     which is why this comment is longer than it deserves to be.
+
+     Typography follows docs/video/PRODUCTION.md: sentence case for prose,
+     caps only for stamps, nothing under 24px, under 46 characters a line.
+     ========================================================================= -->
+
+<style>
+:root {
+  /* Lifted verbatim from vendable/console/index.html so the film and the
+     product are the same object. Amber is the merchant's spendable authority
+     and nothing else, here as there. */
+  --ink:        #080A0E;
+  --ink-2:      #0D1016;
+  --text:       #ECEEF2;
+  --text-dim:   #8B93A1;
+  --text-faint: #5A6472;
+  --amber:      #E0A458;
+  --amber-soft: rgba(224, 164, 88, 0.14);
+  --refuse:     #D6483F;
+  --assent:     #5FA88A;
+  --edge:       rgba(255, 255, 255, 0.10);
+
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans:  "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --mono:  "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html, body { margin: 0; padding: 0; background: var(--ink); }
+
+#stage {
+  position: relative;
+  width: 1920px; height: 1080px;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+/* A faint vertical wash so 1080 lines of flat #080A0E do not band under
+   YouTube's encoder. Static: it is not animated, so it costs no determinism. */
+#stage::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(1200px 700px at 50% 34%, rgba(224,164,88,0.045), transparent 70%);
+}
+
+.scene { position: absolute; inset: 0; z-index: 1; display: none; padding: 96px 140px; box-sizing: border-box; }
+.scene.on { display: block; }
+
+.meta   { font-family: var(--mono); font-size: 24px; color: var(--text-faint); letter-spacing: 0.02em; }
+.req    { font-family: var(--mono); font-size: 27px; color: var(--amber); margin-top: 14px; }
+.stamp  { font-family: var(--mono); font-size: 21px; letter-spacing: 0.22em; color: var(--refuse); font-weight: 700; }
+.serif  { font-family: var(--serif); color: var(--text); line-height: 1.34; }
+.tail   { font-family: var(--mono); font-size: 25px; color: var(--text-dim); letter-spacing: 0.04em; }
+.kicker { font-family: var(--sans); font-size: 31px; color: var(--text-dim); letter-spacing: 0.01em; }
+
+.caret { color: var(--amber); font-family: var(--serif); }
+
+/* ---------- scene 1: the refusal ---------- */
+#s1 .body { font-size: 47px; max-width: 1380px; margin-top: 64px; min-height: 340px; }
+#s1 .stamp { position: absolute; top: 96px; right: 140px; }
+#s1 .tail  { position: absolute; bottom: 110px; left: 140px; }
+
+/* ---------- scene 2: the problem ---------- */
+#s2 .b1-when { font-family: var(--mono); font-size: 26px; color: var(--amber); letter-spacing: 0.06em; }
+#s2 .b1-what { font-size: 58px; max-width: 1300px; margin-top: 18px; }
+#s2 .chips   { display: flex; gap: 28px; margin-top: 56px; }
+#s2 .chip    { border: 1px solid var(--edge); border-radius: 12px; padding: 20px 30px; background: rgba(255,255,255,0.03); }
+#s2 .chip b  { display: block; font-family: var(--sans); font-size: 34px; font-weight: 500; color: var(--text); }
+#s2 .chip i  { display: block; font-family: var(--mono); font-style: normal; font-size: 19px; color: var(--text-faint); margin-top: 8px; }
+#s2 .b3      { font-size: 52px; max-width: 1420px; margin-top: 62px; }
+#s2 .b4      { font-family: var(--sans); font-size: 42px; font-weight: 500; color: var(--amber); margin-top: 54px; }
+
+/* ---------- scene 3: the architecture ---------- */
+#s3 { padding: 0; }
+/* The diagram is drawn at its native 1240x900 and moved by a camera, not fitted
+   to the frame. Shrinking it to fit put its 12.5px body text at 11px on a 1080p
+   frame, which is unreadable and is exactly what YouTube's encoder discards. The
+   camera pushes in instead, so the text on screen is 22px at its smallest and
+   over 40px where it matters. */
+#s3 #archwrap { position: absolute; left: 0; top: 0; width: 1240px; height: 900px; transform-origin: 0 0; }
+#s3 #arch { width: 1240px; height: 900px; display: block; }
+#s3 #cap  { position: absolute; left: 140px; bottom: 62px; font-family: var(--mono); font-size: 30px; color: var(--amber); }
+/* A floor under the caption so it never sits on top of a diagram box. */
+#s3 #capscrim { position: absolute; left: 0; right: 0; bottom: 0; height: 190px; background: linear-gradient(180deg, transparent, var(--ink) 48%); }
+
+/* ---------- scene 4: the refusals ---------- */
+#s4 .kicker { margin-bottom: 44px; }
+#s4 .row   { margin-bottom: 40px; max-width: 1560px; }
+#s4 .rt    { font-family: var(--sans); font-size: 31px; color: var(--text); font-weight: 500; }
+#s4 .rc    { font-family: var(--mono); font-size: 23px; color: var(--refuse); margin-top: 8px; letter-spacing: 0.04em; }
+#s4 .rq    { font-family: var(--serif); font-size: 35px; color: var(--text-dim); margin-top: 10px; }
+#s4 .close { font-family: var(--sans); font-size: 38px; font-weight: 500; color: var(--amber); position: absolute; left: 140px; bottom: 96px; }
+
+/* ---------- scene 5: the experiment ---------- */
+#s5 .kicker { margin-bottom: 16px; }
+#s5 .sub   { font-family: var(--mono); font-size: 25px; color: var(--text-faint); margin-bottom: 46px; }
+#s5 table  { border-collapse: collapse; width: 1500px; }
+#s5 td     { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+#s5 .said  { font-family: var(--sans); font-size: 31px; color: var(--text); }
+#s5 .bp    { font-family: var(--mono); font-size: 29px; color: var(--text-dim); text-align: right; width: 200px; }
+#s5 .dv    { font-family: var(--mono); font-size: 29px; color: var(--text-faint); text-align: right; width: 160px; }
+#s5 tr.lit .said, #s5 tr.lit .bp, #s5 tr.lit .dv { color: var(--amber); }
+#s5 tr.lit td { background: var(--amber-soft); }
+#s5 .verdict { position: absolute; left: 140px; bottom: 92px; }
+#s5 .vmed  { font-family: var(--mono); font-size: 27px; color: var(--assent); }
+#s5 .vsay  { font-family: var(--serif); font-size: 58px; color: var(--text); margin-top: 16px; }
+
+/* ---------- scene 6: the handoff ---------- */
+#s6 .line { font-family: var(--serif); font-size: 66px; color: var(--text); }
+#s6 .line2 { color: var(--amber); margin-top: 22px; }
+#s6 .wrap { position: absolute; left: 140px; top: 44%; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <section class="scene" id="s1">
+    <div class="meta">buyer's agent  &rarr;  shakti-forgings &nbsp;·&nbsp; Udyam-registered small manufacturer</div>
+    <div class="req">request_quote &nbsp;·&nbsp; payment_terms_days = 60</div>
+    <div class="stamp">REFUSED</div>
+    <div class="serif body"><span id="s1txt"></span><span class="caret" id="s1car">|</span></div>
+    <div class="tail">MSMED Act &nbsp;·&nbsp; s.15 &nbsp;·&nbsp; s.16 &nbsp;·&nbsp; s.43B(h)</div>
+  </section>
+
+  <section class="scene" id="s2">
+    <div class="b1">
+      <div class="b1-when">February 2026</div>
+      <div class="serif b1-what">Razorpay and NPCI shipped agentic payments.</div>
+    </div>
+    <div class="chips">
+      <div class="chip"><b>Zomato</b><i>integrated by hand</i></div>
+      <div class="chip"><b>Swiggy</b><i>integrated by hand</i></div>
+      <div class="chip"><b>Zepto</b><i>integrated by hand</i></div>
+    </div>
+    <div class="serif b3">Every long-tail merchant has a spreadsheet, a WhatsApp catalog,<br />and no path at all.</div>
+    <div class="b4">Vendable is the self-serve version of that.</div>
+  </section>
+
+  <section class="scene" id="s3">
+    <div id="archwrap"><img id="arch" src="../architecture.svg" alt="" /></div>
+    <div id="capscrim"></div>
+    <div id="cap"></div>
+  </section>
+
+  <section class="scene" id="s4">
+    <div class="kicker">Every money action, gated</div>
+    <div id="s4rows"></div>
+    <div class="close">Every refusal carries the reason that makes it actionable.</div>
+  </section>
+
+  <section class="scene" id="s5">
+    <div class="kicker">The prompt says persistence is not a reason</div>
+    <div class="sub">105 recorded calls &nbsp;·&nbsp; one line item, fixed &nbsp;·&nbsp; only the buyer's message changes</div>
+    <table><tbody id="s5rows"></tbody></table>
+    <div class="verdict">
+      <div class="vmed" id="s5med">every median: 1000 bp &nbsp;·&nbsp; exactly the published entitlement</div>
+      <div class="vsay" id="s5say">The prompt failed. The engine held.</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s6">
+    <div class="wrap">
+      <div class="line" id="s6a">That is the claim.</div>
+      <div class="line line2" id="s6b">Here is me running it.</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ===================== the timeline =====================================
+   `at` and `dur` are PLACEHOLDERS until vo_01..06 exist and have been
+   measured. Re-time them to the real audio, then re-render. Changing a
+   duration here is the only supported way to change the cut. */
+const CUES = [
+  { id: "s1", at:   0, dur: 22 },
+  { id: "s2", at:  22, dur: 33 },
+  { id: "s3", at:  55, dur: 35 },
+  { id: "s4", at:  90, dur: 35 },
+  { id: "s5", at: 125, dur: 40 },
+  { id: "s6", at: 165, dur: 15 },
+];
+const TOTAL = CUES.reduce((n, c) => Math.max(n, c.at + c.dur), 0);
+window.TOTAL = TOTAL;
+
+/* ===================== pure helpers ===================================== */
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+/* progress through [a,b], 0 before, 1 after */
+const p = (t, a, b) => (b <= a ? (t >= b ? 1 : 0) : clamp((t - a) / (b - a), 0, 1));
+const ease = (x) => x * x * (3 - 2 * x);
+const lerp = (a, b, x) => a + (b - a) * x;
+
+const $ = (s) => document.querySelector(s);
+
+/* fade plus a small rise, the only entrance this film uses */
+function enter(el, t, a, px) {
+  const v = ease(p(t, a, a + 0.85));
+  el.style.opacity = v;
+  el.style.transform = "translateY(" + ((1 - v) * (px === undefined ? 16 : px)).toFixed(2) + "px)";
+}
+
+/* ===================== the real strings =================================
+   Captured from a live run, docs/video/assets/demo_run.txt. Nothing on
+   screen in this film is written for the camera. */
+
+const REFUSAL =
+  "Net 60 cannot be agreed. This supplier is a Udyam-registered small " +
+  "manufacturer, so under s.15 of the MSMED Act a written agreement caps the " +
+  "period at 45 days. Paying later obliges the buyer to compound interest at " +
+  "three times the RBI bank rate under s.16, and defers the buyer's own " +
+  "deduction on the expense under s.43B(h) until it is actually paid. " +
+  "Ask for Net 45 or shorter.";
+
+const REFUSALS = [
+  { at: 1.0,  t: "cart ₹6,750.00 against a mandate cap of ₹50.00",
+              c: "amount_over_cap",
+              q: "“exceeds the mandate cap of ₹50.00 by ₹6,700.00”" },
+  { at: 7.5,  t: "a mandate minted for another shop",
+              c: "mandate_invalid",
+              q: "“Refused before any pricing was considered.”" },
+  { at: 13.5, t: "a mandate that has expired",
+              c: "mandate_invalid",
+              q: "“Refused before any pricing was considered.”" },
+  { at: 19.5, t: "the identical purchase, replayed",
+              c: "",
+              q: "“It has not been charged again.”" },
+];
+
+/* evidence/negotiation.md, table N2. `lit` marks the two rows that contradict
+   the system prompt: they are the argument, so they are the only amber. */
+const ROWS = [
+  { s: "a bare ask",                              bp: "1000 bp", d: "—",  lit: false },
+  { s: "stock has been sitting (200 days old)",   bp: "1000 bp", d: "+0",   lit: true  },
+  { s: "a real volume commitment",                bp: "1013 bp", d: "+13",  lit: false },
+  { s: "we have bought from you for years",       bp: "1020 bp", d: "+20",  lit: false },
+  { s: "pure persistence",                        bp: "1053 bp", d: "+53",  lit: true  },
+  { s: "“I spoke to your owner”",       bp: "1080 bp", d: "+80",  lit: true  },
+  { s: "a competitor's quote",                    bp: "1107 bp", d: "+107", lit: false },
+];
+
+/* ===================== build the DOM once =============================== */
+const s4rows = $("#s4rows");
+REFUSALS.forEach((r) => {
+  const d = document.createElement("div");
+  d.className = "row";
+  d.innerHTML =
+    '<div class="rt"></div>' +
+    (r.c ? '<div class="rc"></div>' : "") +
+    '<div class="rq"></div>';
+  d.querySelector(".rt").textContent = r.t;
+  if (r.c) d.querySelector(".rc").textContent = r.c;
+  d.querySelector(".rq").textContent = r.q;
+  s4rows.appendChild(d);
+});
+
+const s5rows = $("#s5rows");
+ROWS.forEach((r) => {
+  const tr = document.createElement("tr");
+  if (r.lit) tr.className = "lit";
+  tr.innerHTML = '<td class="said"></td><td class="bp"></td><td class="dv"></td>';
+  tr.children[0].textContent = r.s;
+  tr.children[1].textContent = r.bp;
+  tr.children[2].textContent = r.d;
+  s5rows.appendChild(tr);
+});
+
+/* Camera moves, in the architecture SVG's own 1240x900 coordinates. `cx,cy` is
+   what the frame centres on and `w,h` is what must fit, so a change to the
+   diagram is a change to four numbers rather than a re-measure with a ruler.
+   The first and last shots are the whole diagram: establish, then leave. */
+const FIT_W = 1700, FIT_H = 800, S_MAX = 3.4;
+const CAM = [
+  { at:  0.0, cx: 620, cy: 450, w: 1240, h: 900, label: "" },
+  { at:  3.0, cx: 620, cy: 253, w:  900, h:  74, label: "seven tools, discovered from a URL alone" },
+  { at:  9.5, cx: 360, cy: 473, w:  440, h: 226, label: "the model proposes  ·  the engine vetoes" },
+  { at: 17.5, cx: 880, cy: 522, w:  440, h: 324, label: "the mandate gate  ·  no model call, fails closed" },
+  { at: 24.5, cx: 620, cy: 789, w:  960, h:  86, label: "every decision, refusals included" },
+  { at: 30.5, cx: 620, cy: 450, w: 1240, h: 900, label: "" },
+];
+const camScale = (c) => clamp(Math.min(FIT_W / c.w, FIT_H / c.h), 1.0, S_MAX);
+
+/* ===================== seek ============================================= */
+function seek(t) {
+  t = clamp(t, 0, TOTAL);
+
+  for (const cue of CUES) {
+    const el = document.getElementById(cue.id);
+    const end = cue.at + cue.dur;
+    const on = t >= cue.at && t < end;
+    el.classList.toggle("on", on);
+    if (!on) continue;
+
+    /* every scene fades up and down at its own edges, so cuts are never hard */
+    const s = t - cue.at;
+    el.style.opacity = Math.min(ease(p(s, 0, 0.6)), ease(1 - p(s, cue.dur - 0.7, cue.dur)));
+
+    if (cue.id === "s1") scene1(s);
+    else if (cue.id === "s2") scene2(s);
+    else if (cue.id === "s3") scene3(s);
+    else if (cue.id === "s4") scene4(s);
+    else if (cue.id === "s5") scene5(s);
+    else if (cue.id === "s6") scene6(s);
+  }
+}
+
+function scene1(s) {
+  enter($("#s1 .meta"), s, 0.2);
+  enter($("#s1 .req"), s, 1.1);
+
+  const prog = p(s, 2.6, 14.6);
+  $("#s1txt").textContent = REFUSAL.slice(0, Math.floor(prog * REFUSAL.length));
+  /* the caret blinks off a floor of t, not a CSS animation, so it is
+     reproducible frame for frame */
+  const typing = prog > 0 && prog < 1;
+  $("#s1car").style.opacity = typing ? 1 : (prog >= 1 && Math.floor(s * 1.6) % 2 === 0 ? 0.9 : 0);
+
+  enter($("#s1 .stamp"), s, 14.8, 0);
+  enter($("#s1 .tail"), s, 16.6);
+}
+
+function scene2(s) {
+  enter($("#s2 .b1-when"), s, 0.3);
+  enter($("#s2 .b1-what"), s, 0.9);
+  const chips = document.querySelectorAll("#s2 .chip");
+  chips.forEach((c, i) => enter(c, s, 6.0 + i * 0.55));
+  enter($("#s2 .b3"), s, 13.0);
+  enter($("#s2 .b4"), s, 23.0);
+}
+
+function scene3(s) {
+  $("#arch").style.opacity = ease(p(s, 0.2, 2.4));
+
+  let i = 0;
+  for (let k = 0; k < CAM.length; k++) if (s >= CAM[k].at) i = k;
+  const cur = CAM[i], prev = i > 0 ? CAM[i - 1] : CAM[0];
+
+  const move = ease(p(s, cur.at, cur.at + 0.9));
+  const sc = lerp(camScale(prev), camScale(cur), move);
+  const cx = lerp(prev.cx, cur.cx, move);
+  const cy = lerp(prev.cy, cur.cy, move);
+
+  /* place (cx,cy) at the centre of a 1920x1080 frame */
+  const left = 960 - cx * sc, top = 540 - cy * sc;
+  $("#archwrap").style.transform =
+    "translate(" + left.toFixed(2) + "px," + top.toFixed(2) + "px) scale(" + sc.toFixed(4) + ")";
+
+  const cap = $("#cap"), scrim = $("#capscrim");
+  const shown = cur.label ? ease(p(s, cur.at + 0.35, cur.at + 1.05)) : 0;
+  cap.textContent = cur.label || "";
+  cap.style.opacity = shown;
+  scrim.style.opacity = shown;
+}
+
+function scene4(s) {
+  enter($("#s4 .kicker"), s, 0.2);
+  const rows = document.querySelectorAll("#s4 .row");
+  rows.forEach((r, i) => enter(r, s, REFUSALS[i].at, 22));
+  enter($("#s4 .close"), s, 26.5);
+}
+
+function scene5(s) {
+  enter($("#s5 .kicker"), s, 0.2);
+  enter($("#s5 .sub"), s, 0.9);
+  const rows = document.querySelectorAll("#s5rows tr");
+  rows.forEach((r, i) => enter(r, s, 3.0 + i * 1.7, 14));
+  enter($("#s5med"), s, 26.5);
+  enter($("#s5say"), s, 30.0);
+}
+
+function scene6(s) {
+  /* hold on black for the last four seconds: it gives the editor somewhere to
+     make the cut to the live take without clipping a word */
+  enter($("#s6a"), s, 0.4);
+  enter($("#s6b"), s, 2.6);
+  const out = 1 - ease(p(s, 8.0, 10.5));
+  $("#s6 .wrap").style.opacity = out;
+}
+
+window.seek = seek;
+seek(0);
+</script>
+</body>
+</html>
