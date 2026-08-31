@@ -13,6 +13,45 @@ with nothing but a URL**. The agent can search, get a quote, negotiate, reserve 
 
 The interesting part is what it *refuses*.
 
+### It refuses terms that are legal to offer and ruinous to accept
+
+Ask `shakti-forgings` for Net 60 and the sale does not happen — not because the merchant
+dislikes the terms, but because its own commercial ceiling is 90 days and the **statute** is
+tighter than its appetite:
+
+> Net 60 cannot be agreed. This supplier is a Udyam-registered small manufacturer, so under
+> s.15 of the MSMED Act a written agreement caps the period at 45 days. Paying later obliges
+> the buyer to compound interest at three times the RBI bank rate under s.16, and defers the
+> buyer's own deduction on the expense under s.43B(h) until it is actually paid. Ask for Net
+> 45 or shorter.
+
+A buyer's agent that negotiates Net 90 here wins a discount that costs its principal more
+than it saves. The identical request to `acme-fasteners` — a registered small *trader*, whom
+s.43B(h) does not reach — is **accepted**, because a guard that fired on every Indian merchant
+would refuse business the law permits. No LLM is involved: it is
+`MerchantPolicy.statutory_max_credit_days()`, seven lines and no model call. No agentic-commerce
+protocol models this — not ACP, not UCP, not AP2. [Full treatment →](#the-statute-no-agentic-commerce-protocol-models)
+
+### The system prompt failed. The engine held.
+
+The negotiation prompt states that **"persistence is not a reason."** Over 105 recorded calls
+holding the line item fixed and varying only the buyer's message:
+
+| what the buyer said | mean concession |
+|---|---|
+| **stock has been sitting** (200 days old — a reason the prompt names) | **1000 bp — +0** |
+| a real volume commitment | 1013 bp |
+| **pure persistence** (the reason the prompt rejects) | **1053 bp** |
+| **"I spoke to your owner"** (a claim the prompt calls a lie) | **1080 bp** |
+
+Persistence beat both reasons the prompt names, stock age moved the price by exactly zero, and
+the injection scanner flagged none of it. **And every median still landed on the published
+entitlement, and the worst case stayed inside authority.** That is the thesis, measured rather
+than asserted: prompt-level defence is a convenience, the policy engine is the control.
+[Method and the raw-proposal control →](#the-prompt-does-not-do-what-it-says-measured-not-assumed)
+
+### And it still buys
+
 ```
 just asking (request_quote)     ₹34.20  10%  the published volume break, applied unasked
 negotiating with a real reason  ₹33.06  13%  the sales agent conceded, within its authority
@@ -27,7 +66,9 @@ the identical purchase, replayed       refused  "It has not been charged again."
 
 Every line there is a real run against Razorpay test mode, driven over MCP by a client that
 shares no code, types or schema with this repo. The capture is a real payment. The audit chain
-covering all thirteen decisions verifies intact.
+covering all thirteen decisions verifies intact. A payment that **fails** is shown too, in
+`scripts/demo_buy.py --decline`: the authorisation stays valid, the money leg does not, and
+nothing is marked paid.
 
 ## 60-second quickstart
 
@@ -279,6 +320,11 @@ ecosystem, and it belongs in the open rather than glossed over.
 
 ## Architecture
 
+![Vendable architecture: a buyer's agent reaches seven MCP tools; negotiation passes through an LLM whose proposal a deterministic policy engine can veto; purchase passes through a mandate gate with no model call; every decision lands in a hash-linked audit chain.](docs/architecture.svg)
+
+Hand-authored SVG, no build step and no external references. `scripts/render_diagram.py`
+regenerates `docs/architecture.png` from it for slides and video. The same thing in text:
+
 ```
   buyer's agent  (stock MCP client — shares no code, types or schema with this repo)
         │  MCP Streamable HTTP, spec 2026-07-28
@@ -314,6 +360,7 @@ ecosystem, and it belongs in the open rather than glossed over.
 | [`SECURITY.md`](SECURITY.md) | threat model and the limitations I know about |
 | [`docs/pitch.md`](docs/pitch.md) | the locked problem statement, and the claims that are banned |
 | [`docs/PLAN.md`](docs/PLAN.md) | the build plan the phases were executed against |
+| [`docs/architecture.svg`](docs/architecture.svg) | the diagram above, hand-authored, no build step |
 | `docs/research/` | per-phase verification, the protocol landscape, and the competitive read — every claim with a source URL |
 | `evidence/` | the numbers, each reproducible with one command |
 | `redteam/suite.py` | `python -m redteam.suite` |
