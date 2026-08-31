@@ -176,7 +176,8 @@ a person and a play button.
 
 | Check | How |
 |---|---|
-| `film.html` is deterministic | Render `t=42.0` twice, the JPEGs must be byte-identical |
+| `film.html` is deterministic | `render_film.py --check` |
+| Every block can be read | `render_film.py --pacing` (non-zero exit if a scene is over-full) |
 | Frames match the VO | Frame count equals `30 x` total VO seconds, within one frame |
 | Part 1 plays | Watch all three minutes, not a thumbnail |
 | Nothing on screen is fake | Every number greps back to `evidence/` or a captured run |
