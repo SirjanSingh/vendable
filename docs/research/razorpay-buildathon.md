@@ -152,8 +152,12 @@ Razorpay lands in the 4-day gap after ATA. That is not enough time to build a fi
 from zero *and* the ATA agent. The only sane plays are (a) one architecture serving multiple
 submissions, or (b) drop one.
 
-## Open questions for Sirjan
+## Eligibility — settled 2026-09-01
 
-1. Graduation year — is it 2027, 2028 or 2029? If not, this is over before it starts.
-2. Bangalore, in person, from September — yes or no? An honest "no" almost certainly ends it.
+1. **Graduation year: 2027.** In the dropdown. Gate cleared.
+2. **Bangalore, in person, from September: yes.** Gate cleared.
 3. Does a 6-12 month in-person internship starting next month fit around the AARM work?
+   *Still open, but it is a question about accepting an offer, not about submitting.*
+
+Both hard gates that could have ended this before it started are answered. The remaining
+gates are artifacts, not facts about Sirjan: a **public** repo URL and a 5-minute video.
