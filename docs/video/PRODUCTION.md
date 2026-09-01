@@ -18,6 +18,24 @@ does not. Anyone picking this up cold reads the next block and starts there.
 >
 > Then, in order: audition the three voices on cue [1], generate `vo_01..06`, and re-time.
 
+```bash
+# 1. watch it, then re-check the two things that are arithmetic
+.venv/Scripts/python.exe scripts/render_film.py --check
+.venv/Scripts/python.exe scripts/render_film.py --pacing
+
+# 2. after vo_01..06 land in G:/vendable-video/raw and the cues are re-timed
+.venv/Scripts/python.exe scripts/render_film.py --out G:/vendable-video/frames   # ~19 min
+.venv/Scripts/python.exe scripts/build_film.py                                   # picture + voice
+.venv/Scripts/python.exe scripts/build_film.py --part2 G:/vendable-video/raw/<take>.mkv
+```
+
+**State at the end of session 1** (2026-09-01, ~04:00): tree clean at `129d9b1`, nothing
+unpushed, no half-finished work, no servers left running. `part1_silent.mp4` is the only
+deliverable and it is complete. Nothing needs repairing before starting.
+
+Gotcha: listing `G:/vendable-video/frames` takes minutes because it holds 5,580 files. Do not
+`ls` it; the render and build scripts read it directly without a listing.
+
 **Blocked on Sirjan:** an ElevenLabs key in `.env` · the OBS take for part 2 · and
 re-mounting G: if it has been unplugged since (frames and cuts live there).
 
