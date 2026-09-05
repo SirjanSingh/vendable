@@ -8,9 +8,9 @@ pixels. This walks `t` in 1/30s steps and screenshots each one, so the cut is re
 rather than captured in real time: a dropped frame during a live capture would silently shift
 everything after it against the voice track.
 
-The page is served over loopback rather than opened as a `file://` URL, because it fetches
-`../architecture.svg` and file-origin fetches are blocked. Serving `docs/` also keeps the
-image path in the HTML the same one a browser sees.
+The page is served over loopback rather than opened as a `file://` URL, because it loads
+`gate-scene.js` alongside it and file-origin loads are restricted. Serving `docs/` also keeps
+every asset path in the HTML the same one a browser sees.
 
 Frames belong on G:. At 1920x1080 the full three minutes is ~5,400 files and over a gigabyte,
 and C: and D: are both above 95% full.
@@ -84,6 +84,9 @@ def serve(directory: Path) -> tuple[socketserver.TCPServer, int]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Render part one of the pitch video to frames.")
     ap.add_argument("--out", default="G:/vendable-video/frames", help="frame directory")
+    # Part two is a second page with the same seek(t) contract, so it renders through this
+    # script rather than a copy of it. Its cue table lands beside it as <stem>_cues.json.
+    ap.add_argument("--page", default="film.html", help="page under docs/video/ to render")
     ap.add_argument("--fps", type=int, default=FPS)
     ap.add_argument("--probe", action="store_true", help="a handful of stills, no full render")
     ap.add_argument(
@@ -104,7 +107,10 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     httpd, port = serve(DOCS)
-    url = f"http://127.0.0.1:{port}/video/film.html"
+    url = f"http://127.0.0.1:{port}/video/{args.page}"
+    # film.html keeps writing cues.json, the name build_film.py already looks for.
+    stem = Path(args.page).stem
+    cues_name = "cues.json" if stem == "film" else f"{stem}_cues.json"
 
     try:
         with sync_playwright() as pw:
@@ -129,7 +135,7 @@ def main() -> int:
             # would drift the moment a cue is re-timed to the real audio. The page is the
             # authority; this file is derived from it on every run.
             cues = page.evaluate("window.CUES")
-            (DOCS / "video" / "cues.json").write_text(
+            (DOCS / "video" / cues_name).write_text(
                 json.dumps({"fps": args.fps, "total": total, "cues": cues}, indent=2) + "\n",
                 encoding="utf-8",
             )
@@ -140,17 +146,34 @@ def main() -> int:
             if args.check:
                 # Seek all over the timeline between two samples of the same t. If any
                 # state is carried forward rather than derived from t, the hashes differ.
-                page.evaluate("t => window.seek(t)", 42.0)
-                first = hashlib.sha256(page.screenshot()).hexdigest()
-                for t in (0.0, 170.0, 91.5, 12.25, 133.0, 60.0):
-                    page.evaluate("t => window.seek(t)", t)
-                page.evaluate("t => window.seek(t)", 42.0)
-                again = hashlib.sha256(page.screenshot()).hexdigest()
-                ok = first == again
-                print(f"t=42 rendered twice, out of order in between: {first[:32]}")
-                print("PASS - seek(t) is deterministic" if ok else "FAIL - seek(t) carries state")
+                #
+                # One sample PER CUE, not one sample overall. This used to compare a
+                # single frame at t=42, which is inside scene 2 -- so a scene that
+                # carried state anywhere else passed a check that never looked at it.
+                # A sampled assertion only covers what it samples.
+                jumble = (0.0, 170.0, 91.5, 12.25, 133.0, 60.0, 24.0, 100.0)
+                bad = []
+                for cue in cues:
+                    probe = cue["at"] + cue["dur"] * 0.4
+                    page.evaluate("t => window.seek(t)", probe)
+                    first = hashlib.sha256(page.screenshot()).hexdigest()
+                    for t in jumble:
+                        page.evaluate("t => window.seek(t)", t)
+                    page.evaluate("t => window.seek(t)", probe)
+                    again = hashlib.sha256(page.screenshot()).hexdigest()
+                    ok = first == again
+                    if not ok:
+                        bad.append(cue["id"])
+                    print(
+                        f"  {'ok  ' if ok else 'FAIL'}  {cue['id']}  t={probe:6.2f}  {first[:32]}"
+                    )
+                print(
+                    "PASS - seek(t) is deterministic in every scene"
+                    if not bad
+                    else "FAIL - state carried in: " + ", ".join(bad)
+                )
                 browser.close()
-                return 0 if ok else 1
+                return 0 if bad else 1
 
             if args.pacing:
                 # Two of the typography rules in PRODUCTION.md are arithmetic: at most about
@@ -216,7 +239,14 @@ def main() -> int:
                 # that is SHORTER than the last render leaves the old tail on disk and
                 # build_film.py globs it straight back in. The result plays fine and is
                 # silently too long, which is the failure mode this repo keeps finding.
-                stale = [f for f in out.glob("f*.jpg") if int(f.stem[1:]) >= last]
+                #
+                # ONLY on a full render. `last` comes from --end, so on a ranged re-render
+                # of one scene this sweep means "delete everything after the scene I just
+                # fixed" -- `--start 61 --end 96` would take out frames 2880 to 5579, the
+                # whole rest of the film, and report success while doing it. A partial
+                # render knows nothing about where the film ends and must not prune.
+                ranged = args.start > 0 or args.end is not None
+                stale = [] if ranged else [f for f in out.glob("f*.jpg") if int(f.stem[1:]) >= last]
                 for f in stale:
                     f.unlink()
                 if stale:

@@ -69,13 +69,13 @@ def duration(path: Path) -> float:
     return float(out.stdout.strip())
 
 
-def build_picture(frames: Path, fps: int, out: Path) -> Path:
+def build_picture(frames: Path, fps: int, out: Path, name: str = "part1_silent.mp4") -> Path:
     n = len(list(frames.glob("f*.jpg")))
     if n == 0:
         sys.exit(f"no frames in {frames}. Run scripts/render_film.py first.")
     print(f"picture: {n} frames at {fps}fps = {n / fps:.2f}s")
 
-    dst = out / "part1_silent.mp4"
+    dst = out / name
     run(
         [
             ffmpeg(),
@@ -100,24 +100,61 @@ def build_picture(frames: Path, fps: int, out: Path) -> Path:
     return dst
 
 
-def add_voice(picture: Path, vo_dir: Path, out: Path) -> Path:
-    """Mix vo_NN.mp3 onto the picture, each delayed to the start of its cue."""
-    if not CUES.exists():
-        sys.exit(f"{CUES} is missing. Run scripts/render_film.py to generate it.")
-    cues = json.loads(CUES.read_text(encoding="utf-8"))["cues"]
+def add_voice(
+    picture: Path,
+    vo_dir: Path,
+    out: Path,
+    cues_file: Path | None = None,
+    first: int = 1,
+    name: str = "part1.mp4",
+) -> Path:
+    """Mix vo_NN onto the picture, each delayed to the start of its cue.
+
+    `first` is the cue number the page's first scene corresponds to. Part one's scenes are
+    vo_01..06 and part two's are vo_07..13, so the second half passes first=7 rather than
+    keeping a second copy of this function.
+    """
+    cues_path = cues_file or CUES
+    if not cues_path.exists():
+        sys.exit(f"{cues_path} is missing. Run scripts/render_film.py to generate it.")
+    cues = json.loads(cues_path.read_text(encoding="utf-8"))["cues"]
 
     files, delays = [], []
-    for i, cue in enumerate(cues, start=1):
-        f = vo_dir / f"vo_{i:02d}.mp3"
-        if not f.exists():
-            print(f"  missing {f.name} (cue {cue['id']}) -- skipping")
+    for i, cue in enumerate(cues, start=first):
+        # WAV as well as MP3: make_vo.py writes LINEAR16 WAVs, and looking only for .mp3
+        # made every cue "missing" and the film silent, with a per-cue note that scrolled
+        # past as if it were routine.
+        found = next(
+            (p for p in (vo_dir / f"vo_{i:02d}.wav", vo_dir / f"vo_{i:02d}.mp3") if p.exists()),
+            None,
+        )
+        if found is None:
+            print(f"  missing vo_{i:02d}.wav/.mp3 (cue {cue['id']}) -- skipping")
             continue
-        files.append(f)
+        files.append(found)
         delays.append(int(cue["at"] * 1000))
 
     if not files:
-        sys.exit(f"no vo_NN.mp3 in {vo_dir}. See docs/video/script.md for the six cues.")
-    print(f"voice: {len(files)} of {len(cues)} cues present")
+        sys.exit(f"no vo_NN.wav or .mp3 in {vo_dir}. See docs/video/script.md for the cues.")
+    if len(files) != len(cues):
+        # A cue with no voice is a silent stretch of finished film. It has to be loud here
+        # or it is only discovered by watching all five minutes.
+        sys.exit(f"only {len(files)} of {len(cues)} cues have audio in {vo_dir}. Refusing.")
+
+    # A voice longer than the cue it belongs to keeps playing over the next scene, so two
+    # narrators talk at once for the overlap. It is a fraction of a second, it sounds like a
+    # bad edit rather than a bug, and nothing else here would catch it: the picture is
+    # correct, the mix succeeds, and the duration is unchanged. Refuse instead.
+    over = []
+    for f, cue in zip(files, cues):
+        vd = duration(f)
+        if vd > cue["dur"]:
+            over.append(f"{f.name} is {vd:.2f}s in a {cue['dur']}s cue ({cue['id']})")
+    if over:
+        print("voice does not fit its cue:", *over, sep="\n  ")
+        sys.exit("Lengthen the cue in the page and re-render, or shorten the line.")
+
+    print(f"voice: {len(files)} of {len(cues)} cues present, all inside their cues")
 
     args = [ffmpeg(), "-y", "-i", str(picture)]
     for f in files:
@@ -127,9 +164,21 @@ def add_voice(picture: Path, vo_dir: Path, out: Path) -> Path:
     mix = "".join(f"[a{i}]" for i in range(len(files)))
     # normalize=0 keeps each cue at the level it was rendered at. With normalize on,
     # ffmpeg divides by the input count and every cue comes out quiet.
-    chains.append(f"{mix}amix=inputs={len(files)}:normalize=0[mixed]")
+    # The mix ends when the last cue's voice ends, which is always before the picture does:
+    # the final scene holds after its line. Two wrong ways to handle that, both tried:
+    #
+    #   -shortest alone      trims the PICTURE to the voice. Part two built at 139.68s
+    #                        against 144s of frames and lost its closing line.
+    #   apad + -shortest     apad generates silence forever and -shortest did not stop it
+    #                        here, so ffmpeg encoded audio into an ever-growing file. It ran
+    #                        27 minutes on a 30-second job before it was killed.
+    #
+    # So pad the audio, and bound the output by the picture's own measured length rather
+    # than by whichever stream ffmpeg decides is shortest.
+    chains.append(f"{mix}amix=inputs={len(files)}:normalize=0,apad[mixed]")
+    picture_secs = duration(picture)
 
-    dst = out / "part1.mp4"
+    dst = out / name
     run(
         args
         + [
@@ -145,10 +194,17 @@ def add_voice(picture: Path, vo_dir: Path, out: Path) -> Path:
             "aac",
             "-b:a",
             "192k",
-            "-shortest",
+            "-t",
+            f"{picture_secs:.3f}",
             str(dst),
         ]
     )
+    got = duration(dst)
+    # The failure both bugs above produced was a file of the wrong length that played fine.
+    # Check the length against the picture that went in, every time.
+    if abs(got - picture_secs) > 0.15:
+        sys.exit(f"{dst.name} is {got:.2f}s but the picture is {picture_secs:.2f}s. Refusing.")
+    print(f"{dst.name}  {got:.2f}s, matching the picture")
     return dst
 
 
@@ -234,17 +290,26 @@ def main() -> int:
     ap.add_argument("--frames", default="G:/vendable-video/frames")
     ap.add_argument("--vo", default="G:/vendable-video/raw")
     ap.add_argument("--out", default="G:/vendable-video/out")
-    ap.add_argument("--part2", default=None, help="the OBS take for 3:00 to 5:00")
+    ap.add_argument("--part2", default=None, help="the finished second half, to join on")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--silent", action="store_true", help="stop after the picture")
+    # Part two is a second rendered page rather than an OBS take, so it is built by this
+    # same script: different frames, its own cue table, and cues numbered from 7.
+    ap.add_argument("--part", type=int, default=1, choices=(1, 2))
     args = ap.parse_args()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    final = build_picture(Path(args.frames), args.fps, out)
+    two = args.part == 2
+    silent_name = "part2_silent.mp4" if two else "part1_silent.mp4"
+    voiced_name = "part2.mp4" if two else "part1.mp4"
+    cues_file = (REPO / "docs" / "video" / "part2_cues.json") if two else CUES
+    first_cue = 7 if two else 1
+
+    final = build_picture(Path(args.frames), args.fps, out, silent_name)
     if not args.silent:
-        final = add_voice(final, Path(args.vo), out)
+        final = add_voice(final, Path(args.vo), out, cues_file, first_cue, voiced_name)
         if args.part2:
             final = level(join(final, Path(args.part2), out), out)
 

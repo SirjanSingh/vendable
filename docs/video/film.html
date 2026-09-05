@@ -91,18 +91,13 @@ html, body { margin: 0; padding: 0; background: var(--ink); }
 #s2 .b3      { font-size: 52px; max-width: 1420px; margin-top: 62px; }
 #s2 .b4      { font-family: var(--sans); font-size: 42px; font-weight: 500; color: var(--amber); margin-top: 54px; }
 
-/* ---------- scene 3: the architecture ---------- */
+/* ---------- scene 3: the animated purchase ----------
+   Was a camera panning across a static architecture.svg. A viewer with no
+   context learned nothing from it, because nothing on screen ever did
+   anything. It is now gate-scene.js, which draws its own type at 24px and
+   up and carries the explanation in movement rather than in labels.
+   architecture.svg still ships, for the README and the form. */
 #s3 { padding: 0; }
-/* The diagram is drawn at its native 1240x900 and moved by a camera, not fitted
-   to the frame. Shrinking it to fit put its 12.5px body text at 11px on a 1080p
-   frame, which is unreadable and is exactly what YouTube's encoder discards. The
-   camera pushes in instead, so the text on screen is 22px at its smallest and
-   over 40px where it matters. */
-#s3 #archwrap { position: absolute; left: 0; top: 0; width: 1240px; height: 900px; transform-origin: 0 0; }
-#s3 #arch { width: 1240px; height: 900px; display: block; }
-#s3 #cap  { position: absolute; left: 140px; bottom: 62px; font-family: var(--mono); font-size: 30px; color: var(--amber); }
-/* A floor under the caption so it never sits on top of a diagram box. */
-#s3 #capscrim { position: absolute; left: 0; right: 0; bottom: 0; height: 190px; background: linear-gradient(180deg, transparent, var(--ink) 48%); }
 
 /* ---------- scene 4: the refusals ---------- */
 #s4 .kicker { margin-bottom: 44px; }
@@ -131,6 +126,12 @@ html, body { margin: 0; padding: 0; background: var(--ink); }
 #s6 .line2 { color: var(--amber); margin-top: 22px; }
 #s6 .wrap { position: absolute; left: 140px; top: 44%; }
 </style>
+<!-- Scene 3. A classic script, not a module: file-origin ES modules are blocked
+     and the renderer serves docs/ over loopback, so a plain relative src is the
+     one loading strategy that works for both the render and a hand-opened page.
+     The same file is copied into the theatre build by scripts/sync-run.mjs. -->
+<script src="gate-scene.js"></script>
+
 </head>
 <body>
 
@@ -158,11 +159,8 @@ html, body { margin: 0; padding: 0; background: var(--ink); }
     <div class="b4">Vendable is the self-serve version of that.</div>
   </section>
 
-  <section class="scene" id="s3">
-    <div id="archwrap"><img id="arch" src="../architecture.svg" alt="" /></div>
-    <div id="capscrim"></div>
-    <div id="cap"></div>
-  </section>
+  <!-- gate-scene.js fills this on load; see the build block below -->
+  <section class="scene" id="s3"></section>
 
   <section class="scene" id="s4">
     <div class="kicker">Every money action, gated</div>
@@ -183,7 +181,9 @@ html, body { margin: 0; padding: 0; background: var(--ink); }
   <section class="scene" id="s6">
     <div class="wrap">
       <div class="line" id="s6a">That is the claim.</div>
-      <div class="line line2" id="s6b">Here is me running it.</div>
+      <!-- Was "Here is me running it." Part 2 is narrated rather than presented
+           live, so that sentence stopped being true on 2026-09-05. -->
+      <div class="line line2" id="s6b">Here it is running.</div>
     </div>
   </section>
 
@@ -193,16 +193,31 @@ html, body { margin: 0; padding: 0; background: var(--ink); }
 "use strict";
 
 /* ===================== the timeline =====================================
-   `at` and `dur` are PLACEHOLDERS until vo_01..06 exist and have been
-   measured. Re-time them to the real audio, then re-render. Changing a
-   duration here is the only supported way to change the cut. */
+   Re-timed 2026-09-05 against the measured narration in
+   video-remotion/audio_aoede/durations.json:
+
+     vo_01 13.50   vo_02 26.38   vo_03 21.80
+     vo_04 20.94   vo_05 30.28   vo_06  2.96      = 115.86s of speech
+
+   Each cue is the voice plus room to look at what it is talking about, and
+   every one still clears `render_film.py --pacing`. The total is 154s rather
+   than 186 for a hard reason: part two measures 144s and the submission form
+   rejects anything over 300. 154 + 144 = 298, which is two seconds of margin
+   and not a lot. If a cue has to grow, another has to shrink.
+
+   Every cue is also >= its own voice file. s2 and s5 were first set to 26 and
+   30 against voices of 26.38 and 30.28, which would have played the tail of one
+   cue over the head of the next: two narrators at once, for four tenths of a
+   second, twice. build_film.py now refuses that rather than mixing it.
+
+   Changing a duration here is the only supported way to change the cut. */
 const CUES = [
   { id: "s1", at:   0, dur: 28 },
-  { id: "s2", at:  28, dur: 33 },
-  { id: "s3", at:  61, dur: 35 },
-  { id: "s4", at:  96, dur: 35 },
-  { id: "s5", at: 131, dur: 40 },
-  { id: "s6", at: 171, dur: 15 },
+  { id: "s2", at:  28, dur: 28 },
+  { id: "s3", at:  56, dur: 32 },
+  { id: "s4", at:  88, dur: 24 },
+  { id: "s5", at: 112, dur: 32 },
+  { id: "s6", at: 144, dur: 10 },
 ];
 const TOTAL = CUES.reduce((n, c) => Math.max(n, c.at + c.dur), 0);
 window.TOTAL = TOTAL;
@@ -289,20 +304,11 @@ ROWS.forEach((r) => {
   s5rows.appendChild(tr);
 });
 
-/* Camera moves, in the architecture SVG's own 1240x900 coordinates. `cx,cy` is
-   what the frame centres on and `w,h` is what must fit, so a change to the
-   diagram is a change to four numbers rather than a re-measure with a ruler.
-   The first and last shots are the whole diagram: establish, then leave. */
-const FIT_W = 1700, FIT_H = 800, S_MAX = 3.4;
-const CAM = [
-  { at:  0.0, cx: 620, cy: 450, w: 1240, h: 900, label: "" },
-  { at:  3.0, cx: 620, cy: 253, w:  900, h:  74, label: "seven tools, discovered from a URL alone" },
-  { at:  9.5, cx: 360, cy: 473, w:  440, h: 226, label: "the model proposes  ·  the engine vetoes" },
-  { at: 17.5, cx: 880, cy: 522, w:  440, h: 324, label: "the mandate gate  ·  no model call, fails closed" },
-  { at: 24.5, cx: 620, cy: 789, w:  960, h:  86, label: "every decision, refusals included" },
-  { at: 30.5, cx: 620, cy: 450, w: 1240, h: 900, label: "" },
-];
-const camScale = (c) => clamp(Math.min(FIT_W / c.w, FIT_H / c.h), 1.0, S_MAX);
+/* Scene 3's markup comes from gate-scene.js and is injected once, here, rather
+   than written out above: the same string has to build this page and a React
+   component on the theatre site, so it lives in one file and neither copy can
+   drift from the other. */
+$("#s3").innerHTML = GateScene.MARKUP;
 
 /* ===================== seek ============================================= */
 function seek(t) {
@@ -343,61 +349,55 @@ function scene1(s) {
   enter($("#s1 .tail"), s, 12.8);
 }
 
+/* Beat times below were set against the old 33/35/40s cues and are re-scaled to
+   the re-timed ones. They are written as fractions of the cue rather than as
+   seconds so a future re-time moves them too, instead of leaving a block
+   landing after its own scene has ended. */
+const at = (frac, dur) => frac * dur;
+
 function scene2(s) {
+  const d = CUES[1].dur;
   enter($("#s2 .b1-when"), s, 0.3);
   enter($("#s2 .b1-what"), s, 0.9);
   const chips = document.querySelectorAll("#s2 .chip");
-  chips.forEach((c, i) => enter(c, s, 6.0 + i * 0.55));
-  enter($("#s2 .b3"), s, 13.0);
-  enter($("#s2 .b4"), s, 23.0);
+  chips.forEach((c, i) => enter(c, s, at(0.18, d) + i * 0.55));
+  enter($("#s2 .b3"), s, at(0.39, d));
+  enter($("#s2 .b4"), s, at(0.70, d));
 }
 
 function scene3(s) {
-  $("#arch").style.opacity = ease(p(s, 0.2, 2.4));
-
-  let i = 0;
-  for (let k = 0; k < CAM.length; k++) if (s >= CAM[k].at) i = k;
-  const cur = CAM[i], prev = i > 0 ? CAM[i - 1] : CAM[0];
-
-  const move = ease(p(s, cur.at, cur.at + 0.9));
-  const sc = lerp(camScale(prev), camScale(cur), move);
-  const cx = lerp(prev.cx, cur.cx, move);
-  const cy = lerp(prev.cy, cur.cy, move);
-
-  /* place (cx,cy) at the centre of a 1920x1080 frame */
-  const left = 960 - cx * sc, top = 540 - cy * sc;
-  $("#archwrap").style.transform =
-    "translate(" + left.toFixed(2) + "px," + top.toFixed(2) + "px) scale(" + sc.toFixed(4) + ")";
-
-  const cap = $("#cap"), scrim = $("#capscrim");
-  const shown = cur.label ? ease(p(s, cur.at + 0.35, cur.at + 1.05)) : 0;
-  cap.textContent = cur.label || "";
-  cap.style.opacity = shown;
-  scrim.style.opacity = shown;
+  /* The scene is 35s and GateScene works in 0..1, so the cue duration is the
+     only place the length is written down. Re-time the cue and the animation
+     re-times with it. */
+  GateScene.draw($("#s3"), s / CUES[2].dur);
 }
 
 function scene4(s) {
+  const d = CUES[3].dur;
   enter($("#s4 .kicker"), s, 0.2);
   const rows = document.querySelectorAll("#s4 .row");
-  rows.forEach((r, i) => enter(r, s, REFUSALS[i].at, 22));
-  enter($("#s4 .close"), s, 26.5);
+  /* REFUSALS[].at were authored against a 35s cue */
+  rows.forEach((r, i) => enter(r, s, at(REFUSALS[i].at / 35, d), 22));
+  enter($("#s4 .close"), s, at(26.5 / 35, d));
 }
 
 function scene5(s) {
+  const d = CUES[4].dur;
   enter($("#s5 .kicker"), s, 0.2);
   enter($("#s5 .sub"), s, 0.9);
   const rows = document.querySelectorAll("#s5rows tr");
-  rows.forEach((r, i) => enter(r, s, 3.0 + i * 1.7, 14));
-  enter($("#s5med"), s, 26.5);
-  enter($("#s5say"), s, 30.0);
+  rows.forEach((r, i) => enter(r, s, at(3.0 / 40, d) + i * at(1.7 / 40, d), 14));
+  enter($("#s5med"), s, at(26.5 / 40, d));
+  enter($("#s5say"), s, at(30.0 / 40, d));
 }
 
 function scene6(s) {
   /* hold on black for the last four seconds: it gives the editor somewhere to
      make the cut to the live take without clipping a word */
+  const d = CUES[5].dur;
   enter($("#s6a"), s, 0.4);
-  enter($("#s6b"), s, 2.6);
-  const out = 1 - ease(p(s, 8.0, 10.5));
+  enter($("#s6b"), s, 2.2);
+  const out = 1 - ease(p(s, at(0.62, d), at(0.92, d)));
   $("#s6 .wrap").style.opacity = out;
 }
 

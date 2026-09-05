@@ -19,14 +19,29 @@ does not. Anyone picking this up cold reads the next block and starts there.
 > Then, in order: audition the three voices on cue [1], generate `vo_01..06`, and re-time.
 
 ```bash
-# 1. watch it, then re-check the two things that are arithmetic
+# checks, both parts (fast)
 .venv/Scripts/python.exe scripts/render_film.py --check
 .venv/Scripts/python.exe scripts/render_film.py --pacing
+.venv/Scripts/python.exe scripts/render_film.py --page part2.html --check
+.venv/Scripts/python.exe scripts/render_film.py --page part2.html --pacing
 
-# 2. after vo_01..06 land in G:/vendable-video/raw and the cues are re-timed
-.venv/Scripts/python.exe scripts/render_film.py --out G:/vendable-video/frames   # ~19 min
-.venv/Scripts/python.exe scripts/build_film.py                                   # picture + voice
-.venv/Scripts/python.exe scripts/build_film.py --part2 G:/vendable-video/raw/<take>.mkv
+# the narration (needs a fresh GCP token; Aoede is en-IN, onyx is the fallback)
+$env:GOOGLE_ACCESS_TOKEN = (gcloud auth print-access-token)
+.venv/Scripts/python.exe video-remotion/scripts/make_vo.py --provider gcp --only 1-13 --suffix aoede
+
+# re-capture the run only if it needs to be fresher; it takes ~11 minutes
+.venv/Scripts/python.exe scripts/capture_run.py
+.venv/Scripts/python.exe scripts/make_run_lines.py
+
+# frames, ~15 min each
+.venv/Scripts/python.exe scripts/render_film.py --out G:/vendable-video/frames
+.venv/Scripts/python.exe scripts/render_film.py --page part2.html --out G:/vendable-video/frames2
+
+# assemble: part 2 first, then part 1 joins it and produces upload.mp4
+.venv/Scripts/python.exe scripts/build_film.py --part 2 --frames G:/vendable-video/frames2 \
+    --vo video-remotion/audio_aoede
+.venv/Scripts/python.exe scripts/build_film.py --vo video-remotion/audio_aoede \
+    --part2 G:/vendable-video/out/part2.mp4
 ```
 
 **State at the end of session 1** (2026-09-01, ~04:00): tree clean at `129d9b1`, nothing
@@ -36,27 +51,71 @@ deliverable and it is complete. Nothing needs repairing before starting.
 Gotcha: listing `G:/vendable-video/frames` takes minutes because it holds 5,580 files. Do not
 `ls` it; the render and build scripts read it directly without a listing.
 
-**Blocked on Sirjan:** an ElevenLabs key in `.env` · the OBS take for part 2 · and
-re-mounting G: if it has been unplugged since (frames and cuts live there).
+**Blocked on Sirjan:** watching `upload.mp4` end to end, and the 12-answer form.
+
+No ElevenLabs key is needed and none was bought. There is no OpenAI voice in Indian English,
+but Google's `en-IN-Chirp3-HD-Aoede` is, and `make_vo.py --provider gcp` uses it. The only
+thing it needs is a fresh access token in `GOOGLE_ACCESS_TOKEN`, which expires, so it is
+generated per session rather than stored.
 
 ---
 
 ## The shape
 
-5:00 hard cap, target 4:50. Two halves with a deliberate, spoken seam.
+5:00 hard cap. **298s, 4:58.** Both halves narrated, with a stated seam.
 
-| Time | Who | On screen |
+Two seconds of margin, which is thin. Any cue that grows has to take the time from another
+one; `build_film.py` fails the build rather than producing an over-length upload.
+
+Re-timed 2026-09-05 to the measured Aoede durations. The numbers below are the cue tables in
+`film.html` and `part2.html`, which `render_film.py` dumps to `cues.json` and
+`part2_cues.json` on every render, so they cannot drift from what was rendered.
+
+| Time | Cue | On screen |
 |---|---|---|
-| 0:00-0:22 | AI VO | Cold open: the MSMED refusal types itself out |
-| 0:22-0:55 | AI VO | The problem: hand-integrated launch merchants vs the long tail |
-| 0:55-1:30 | AI VO | `architecture.svg` assembles as the VO names each part |
-| 1:30-2:05 | AI VO | Real terminal output of the four refusals |
-| 2:05-2:45 | AI VO | The experiment table builds; the persistence row lights amber |
-| 2:45-3:00 | AI VO | Handoff, cut to black |
-| 3:00-4:35 | **Sirjan** | OBS: two servers, the demo, the console, chain verify |
-| 4:35-4:50 | **Sirjan** | Close: what is not claimed, and what broke |
+| 0:00-0:28 | vo_01 | Cold open: the MSMED refusal types itself out |
+| 0:28-0:56 | vo_02 | The problem: hand-integrated launch merchants vs the long tail |
+| 0:56-1:28 | vo_03 | The gate scene, animated: connect, quote, veto, refuse, pay |
+| 1:28-1:52 | vo_04 | The four refusals, re-typeset |
+| 1:52-2:24 | vo_05 | The experiment table builds; the persistence row lights amber |
+| 2:24-2:34 | vo_06 | Seam, cut to black |
+| 2:34-2:54 | vo_07 | Two servers, two ports, two sets of audit records |
+| 2:54-3:18 | vo_08 | A stock client discovers, reads policy, is quoted |
+| 3:18-3:40 | vo_09 | Over the cap. REFUSED, with the overage named |
+| 3:40-4:02 | vo_10 | Wrong shop, expired, replayed |
+| 4:02-4:32 | vo_11 | Authorised, paid on test mode, then a decline that pays nothing |
+| 4:32-4:49 | vo_12 | The chain, 165 records, verify INTACT |
+| 4:49-4:58 | vo_13 | What is not claimed |
 
-Seam line, spoken: *"That is the claim. Here is me running it."*
+Seam line, spoken: *"That is the claim. Here it is running."*
+
+### Why part 2 is narrated, not presented
+
+It was **"Sirjan live on OBS for 3:00 to 5:00"** until 2026-09-05. It changed for scheduling
+and nothing else, on the day the form closed.
+
+The cost is real and worth naming: this is a hiring funnel, and a five-minute video with
+nobody in it gives a panel less to go on. Two things were done to keep the change honest
+rather than quiet:
+
+- **The seam line changed.** "Here is me running it" over a video with no me in it is simply
+  false. It now says what the second half actually is.
+- **What replaced the presence is the run itself**, not a tour of the website.
+  `scripts/capture_run.py` drove `demo_buy.py` against two live servers and recorded the
+  arrival time of every line; `scripts/make_run_lines.py` selects which of those lines each
+  scene shows. Every string in part 2 was printed by a real process. The theatre page is a
+  *replay* by its own admission, so it is not what part 2 is built on.
+
+### Where part 2 bends a rule, deliberately
+
+`--pacing` flags p3, p4 and p5 as having more text than there is time to read at 3.5 words a
+second. That is true and it stays, for a reason that does not generalise: the rule is
+calibrated for prose a viewer must read cold to follow the argument, and these are terminal
+rows being *scanned* while the narrator speaks their content. The alternative was truncating
+refusal messages so they no longer say why, which is the one thing this build will not do.
+
+Everything else passes: 13 of 13 scenes deterministic, and the remaining nine cues clear
+pacing outright.
 
 ## Locked decisions (do not relitigate)
 

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vendable — part two</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<!-- =========================================================================
+     Vendable, part two of the pitch video. 3:00 to 5:00.
+
+     THE ONE RULE, same as film.html: every visual state is a pure function of
+     `t`. No CSS transitions, no requestAnimationFrame, no Date.now.
+
+     What is on screen is a real run. `scripts/capture_run.py` drove
+     `scripts/demo_buy.py` against two live servers and recorded the arrival
+     time of every line; `scripts/make_run_lines.py` selected the lines each
+     scene shows and wrote run_lines.js. Nothing here is typed for the camera,
+     and the elapsed clock in the gutter is the run's own, not the video's.
+
+     The run took 660 seconds and this is 129, so time is compressed. That is
+     stated on screen where it happens rather than hidden: the clock jumps
+     visibly from 8s to 503s and the scene says what was skipped and why.
+     ========================================================================= -->
+
+<style>
+:root {
+  --ink:        #080A0E;
+  --text:       #ECEEF2;
+  --text-dim:   #8B93A1;
+  --text-faint: #5A6472;
+  --amber:      #E0A458;
+  --amber-soft: rgba(224, 164, 88, 0.14);
+  --refuse:     #D6483F;
+  --assent:     #5FA88A;
+  --edge:       rgba(255, 255, 255, 0.10);
+
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans:  "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --mono:  "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html, body { margin: 0; padding: 0; background: var(--ink); }
+
+#stage {
+  position: relative;
+  width: 1920px; height: 1080px;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+}
+#stage::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(1200px 700px at 50% 34%, rgba(224,164,88,0.045), transparent 70%);
+}
+
+.scene { position: absolute; inset: 0; z-index: 1; display: none; padding: 78px 140px; box-sizing: border-box; }
+.scene.on { display: block; }
+
+.kicker { font-family: var(--sans); font-size: 31px; color: var(--text-dim); }
+.sub    { font-family: var(--mono); font-size: 25px; color: var(--text-faint); margin-top: 10px; }
+
+/* ---------- the terminal ----------
+   26px mono, not the 28px prose floor. These are captured lines up to 180
+   characters and the alternative to 26px is not 28px, it is truncating a
+   refusal so it no longer says why. Still well over the 24px hard floor, and
+   mono at 26 reads larger than its number suggests. */
+.term { margin-top: 34px; }
+.ln {
+  display: flex; gap: 22px; align-items: baseline;
+  font-family: var(--mono); font-size: 26px; line-height: 1.42;
+  margin-bottom: 7px;
+}
+.ln .clk {
+  flex: 0 0 118px; text-align: right;
+  color: var(--text-faint); font-size: 22px; font-variant-numeric: tabular-nums;
+}
+.ln .txt { flex: 1 1 auto; white-space: pre-wrap; color: var(--text-dim); }
+.ln.head .txt { color: var(--text); font-weight: 500; }
+.ln.no   .txt { color: var(--refuse); }
+.ln.yes  .txt { color: var(--assent); }
+.ln.amb  .txt { color: var(--amber); }
+
+.stamp {
+  position: absolute; top: 78px; right: 140px;
+  font-family: var(--mono); font-size: 34px; letter-spacing: 0.2em; font-weight: 700;
+}
+
+/* ---------- scene 1: two servers ---------- */
+#p1 .cmd { font-family: var(--mono); font-size: 32px; color: var(--amber); margin-top: 30px; }
+#p1 .cards { display: flex; gap: 34px; margin-top: 62px; }
+#p1 .card {
+  border: 1px solid var(--edge); border-radius: 14px; padding: 30px 36px;
+  background: rgba(255,255,255,0.03); min-width: 620px;
+}
+#p1 .card b { display: block; font-family: var(--sans); font-size: 38px; font-weight: 500; }
+#p1 .card i { display: block; font-family: var(--mono); font-style: normal; font-size: 25px; color: var(--text-faint); margin-top: 12px; }
+#p1 .card .port { color: var(--amber); }
+#p1 .why { font-family: var(--serif); font-size: 46px; margin-top: 78px; max-width: 1400px; }
+
+/* ---------- scene 7: the close ---------- */
+#p7 .wrap { position: absolute; left: 140px; top: 40%; }
+#p7 .l1 { font-family: var(--serif); font-size: 62px; color: var(--text); max-width: 1500px; }
+#p7 .l2 { font-family: var(--serif); font-size: 62px; color: var(--amber); margin-top: 20px; }
+#p7 .tail { position: absolute; left: 140px; bottom: 96px; font-family: var(--mono); font-size: 25px; color: var(--text-faint); }
+
+/* A note where time was compressed. It is not decoration: without it the clock
+   jumping from 8s to 503s looks like a rendering fault or a lie. */
+.gap {
+  font-family: var(--mono); font-size: 24px; color: var(--amber);
+  border-left: 3px solid var(--amber); padding-left: 18px; margin: 4px 0 18px 140px;
+}
+</style>
+
+<script src="run_lines.js"></script>
+</head>
+<body>
+
+<div id="stage">
+
+  <section class="scene" id="p1">
+    <div class="kicker">Two merchants, two processes</div>
+    <div class="cmd">$ .venv/Scripts/python.exe scripts/serve_demo.py</div>
+    <div class="cards">
+      <div class="card">
+        <b>acme-fasteners</b>
+        <i><span class="port">:8080</span> &nbsp; Udyam small TRADER</i>
+        <i>statutory cap: none, outside s.15</i>
+      </div>
+      <div class="card">
+        <b>shakti-forgings</b>
+        <i><span class="port">:8081</span> &nbsp; Udyam small MANUFACTURER</i>
+        <i>statutory cap: 45 days</i>
+      </div>
+    </div>
+    <div class="serif why">Separate catalogs, separate policy files, separate audit records.</div>
+  </section>
+
+  <section class="scene" id="p2">
+    <div class="kicker">A stock client, given a URL and nothing else</div>
+    <div class="term" id="p2term"></div>
+  </section>
+
+  <section class="scene" id="p3">
+    <div class="kicker">It tries to pay</div>
+    <div class="gap" id="p3gap"></div>
+    <div class="term" id="p3term"></div>
+    <div class="stamp" id="p3stamp" style="color:var(--refuse)">REFUSED</div>
+  </section>
+
+  <section class="scene" id="p4">
+    <div class="kicker">Three more, on three different grounds</div>
+    <div class="term" id="p4term"></div>
+  </section>
+
+  <section class="scene" id="p5">
+    <div class="kicker">A correct mandate, and a card that declines</div>
+    <div class="term" id="p5term"></div>
+  </section>
+
+  <section class="scene" id="p6">
+    <div class="kicker">Every decision, on a hash-linked chain</div>
+    <div class="sub">verified with the servers switched off</div>
+    <div class="term" id="p6term"></div>
+  </section>
+
+  <section class="scene" id="p7">
+    <div class="wrap">
+      <div class="l1" id="p7a">Mandate gated payment is Razorpay's.</div>
+      <div class="l2" id="p7b">The self-serve path to it is mine.</div>
+    </div>
+    <div class="tail" id="p7t">every figure above came out of the run you just watched</div>
+  </section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ===================== the timeline =====================================
+   Durations are the measured Aoede narration plus room to watch the run.
+   video-remotion/audio_aoede/durations.json holds the voice lengths:
+   vo_07..vo_13 = 15.36, 17.84, 13.54, 15.24, 9.64, 6.16, 4.68. */
+const CUES = [
+  { id: "p1", at:   0, dur: 20 },
+  { id: "p2", at:  20, dur: 24 },
+  { id: "p3", at:  44, dur: 22 },
+  { id: "p4", at:  66, dur: 22 },
+  { id: "p5", at:  88, dur: 30 },
+  { id: "p6", at: 118, dur: 17 },
+  { id: "p7", at: 135, dur:  9 },
+];
+const TOTAL = CUES.reduce((n, c) => Math.max(n, c.at + c.dur), 0);
+window.TOTAL = TOTAL;
+window.CUES = CUES;
+
+/* ===================== pure helpers ===================================== */
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+const p = (t, a, b) => (b <= a ? (t >= b ? 1 : 0) : clamp((t - a) / (b - a), 0, 1));
+const ease = (x) => x * x * (3 - 2 * x);
+const $ = (s) => document.querySelector(s);
+
+function enter(el, t, a, px) {
+  const v = ease(p(t, a, a + 0.7));
+  el.style.opacity = v;
+  el.style.transform = "translateY(" + ((1 - v) * (px === undefined ? 14 : px)).toFixed(2) + "px)";
+}
+
+/* ===================== the run =========================================
+   run_lines.js is generated from the captured run. If it is missing the page
+   must fail loudly rather than render an empty terminal that looks fine. */
+if (!window.RUN_LINES) {
+  throw new Error("run_lines.js not loaded. Run scripts/make_run_lines.py.");
+}
+const G = window.RUN_LINES.groups;
+
+/* Colour is meaning, not decoration: refusals red, authorisations green, the
+   two lines that name the Razorpay gap amber. Everything else stays dim. */
+function classify(s) {
+  if (/authorised=False|Refused|mandate\.refused|code=/.test(s)) return "no";
+  if (/authorised=True|Authorised|status=paid|captured|mandate\.accepted|INTACT/.test(s)) return "yes";
+  if (/no agent-facing|last mile|without being asked|Fix the reason/.test(s)) return "amb";
+  return "";
+}
+
+function fill(host, rows) {
+  for (const r of rows) {
+    const d = document.createElement("div");
+    d.className = "ln" + (r.head ? " head" : "") + (r.head ? "" : " " + classify(r.s));
+    const c = document.createElement("div");
+    c.className = "clk";
+    c.textContent = r.t.toFixed(2) + "s";
+    const x = document.createElement("div");
+    x.className = "txt";
+    x.textContent = r.s.replace(/^\s+/, r.head ? "" : "  ");
+    d.appendChild(c);
+    d.appendChild(x);
+    host.appendChild(d);
+  }
+}
+
+fill($("#p2term"), G.discover);
+fill($("#p3term"), G.cap);
+fill($("#p4term"), G.others);
+fill($("#p5term"), G.money);
+fill($("#p6term"), G.chain);
+
+/* The one place the compression is visible, so it is the one place it is
+   named. Both numbers are read off the capture rather than written in. */
+const lastSeen = G.discover[G.discover.length - 1].t;
+const nextShown = G.cap[0].t;
+$("#p3gap").textContent =
+  "clock jumps " + lastSeen.toFixed(0) + "s to " + nextShown.toFixed(0) + "s  ·  " +
+  "steps 7 and 8, negotiation and the injection, are part one's subject";
+
+/* Reveal each line in turn, filling the scene's own duration with a little
+   held at the end so the last line can be read. */
+function reveal(sel, s, from, until) {
+  const rows = document.querySelectorAll(sel + " .ln");
+  const step = rows.length ? (until - from) / rows.length : 0;
+  rows.forEach((r, i) => enter(r, s, from + i * step, 10));
+}
+
+/* ===================== seek ============================================= */
+function seek(t) {
+  t = clamp(t, 0, TOTAL);
+
+  for (const cue of CUES) {
+    const el = document.getElementById(cue.id);
+    const end = cue.at + cue.dur;
+    const on = t >= cue.at && t < end;
+    el.classList.toggle("on", on);
+    if (!on) continue;
+
+    const s = t - cue.at;
+    el.style.opacity = Math.min(ease(p(s, 0, 0.5)), ease(1 - p(s, cue.dur - 0.6, cue.dur)));
+
+    if (cue.id === "p1") {
+      enter($("#p1 .kicker"), s, 0.2);
+      enter($("#p1 .cmd"), s, 0.9);
+      const cards = document.querySelectorAll("#p1 .card");
+      cards.forEach((c, i) => enter(c, s, 3.0 + i * 0.9));
+      enter($("#p1 .why"), s, 9.5);
+    } else if (cue.id === "p2") {
+      enter($("#p2 .kicker"), s, 0.2);
+      reveal("#p2", s, 1.0, cue.dur - 4.5);
+    } else if (cue.id === "p3") {
+      enter($("#p3 .kicker"), s, 0.2);
+      enter($("#p3gap"), s, 1.0);
+      reveal("#p3", s, 3.0, cue.dur - 6.0);
+      enter($("#p3stamp"), s, cue.dur - 6.5, 0);
+    } else if (cue.id === "p4") {
+      enter($("#p4 .kicker"), s, 0.2);
+      reveal("#p4", s, 1.0, cue.dur - 4.0);
+    } else if (cue.id === "p5") {
+      enter($("#p5 .kicker"), s, 0.2);
+      reveal("#p5", s, 1.0, cue.dur - 3.5);
+    } else if (cue.id === "p6") {
+      enter($("#p6 .kicker"), s, 0.2);
+      enter($("#p6 .sub"), s, 0.7);
+      reveal("#p6", s, 1.4, cue.dur - 3.0);
+    } else if (cue.id === "p7") {
+      enter($("#p7a"), s, 0.3);
+      enter($("#p7b"), s, 1.8);
+      enter($("#p7t"), s, 3.4);
+    }
+  }
+}
+
+window.seek = seek;
+seek(0);
+</script>
+</body>
+</html>
