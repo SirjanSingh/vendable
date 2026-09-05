@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" width="1240" height="900" role="img" aria-labelledby="t d">
+<title id="t">Vendable architecture</title>
+<desc id="d">A buyer's agent connects over MCP to seven tools. Negotiation goes through an LLM whose proposal a deterministic policy engine can veto. Purchase goes through a mandate gate with no model call. Every decision, including refusals, is written to a hash-linked audit chain.</desc>
+<style>
+  .bg   { fill: #080A0E; }
+  .box  { fill: #11151C; stroke: #232A34; stroke-width: 1.5; rx: 10; }
+  .det  { stroke: #E0A458; }
+  .pay  { stroke: #5FA88A; }
+  .ttl  { font: 600 22px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #F2EFE9; }
+  .sub  { font: 400 13px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #7C8794; }
+  .h    { font: 600 15px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #F2EFE9; }
+  .b    { font: 400 12.5px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #B6BEC8; }
+  .m    { font: 400 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #B6BEC8; }
+  .amber{ font: 600 12.5px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #E0A458; }
+  .green{ font: 600 12.5px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #5FA88A; }
+  .edge { stroke: #3A434F; stroke-width: 1.6; fill: none; marker-end: url(#a); }
+  .lbl  { font: 400 11.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #7C8794; }
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3A434F"/></marker></defs>
+
+<rect class="bg" width="1240" height="900"/>
+<text class="ttl" x="60" y="52">Vendable — the LLM proposes, a deterministic engine disposes</text>
+<text class="sub" x="60" y="76">Two model calls exist. Each has a verifier immediately downstream. Neither can move money.</text>
+
+<rect class="box" x="420" y="110" width="400" height="56"/>
+<text class="h" x="440" y="134">buyer's agent</text>
+<text class="b" x="440" y="153">stock MCP client — shares no code, types or schema</text>
+
+<path class="edge" d="M620 166 L620 214"/>
+<text class="lbl" x="634" y="194">MCP Streamable HTTP · spec 2026-07-28</text>
+
+<rect class="box" x="170" y="216" width="900" height="74"/>
+<text class="m" x="196" y="248">search_products · get_product · get_policies · request_quote</text>
+<text class="m" x="196" y="272">negotiate · reserve_stock · create_purchase</text>
+<text class="sub" x="1044" y="248" text-anchor="end">7 tools</text>
+<text class="sub" x="1044" y="272" text-anchor="end">refusals raise ToolError</text>
+
+<path class="edge" d="M360 290 L360 358"/>
+<path class="edge" d="M880 290 L880 358"/>
+
+<rect class="box" x="140" y="360" width="440" height="58"/>
+<text class="h" x="164" y="384">LLM proposes a concession</text>
+<text class="b" x="164" y="403">a sales agent with an argument, and no authority</text>
+<path class="edge" d="M360 418 L360 456"/>
+
+<rect class="box det" x="140" y="458" width="440" height="128"/>
+<text class="amber" x="164" y="484">PolicyEngine — VETO</text>
+<text class="b" x="164" y="506">entitled breaks applied unasked · discretionary cap</text>
+<text class="b" x="164" y="526">margin floor · injection scan · integer paise, no floats</text>
+<text class="b" x="164" y="546">MerchantPolicy.statutory_max_credit_days()</text>
+<text class="amber" x="164" y="570">no model call</text>
+
+<rect class="box pay" x="660" y="360" width="440" height="128"/>
+<text class="green" x="684" y="386">MandateGate — fails closed</text>
+<text class="b" x="684" y="408">signature · expiry · audience · cap</text>
+<text class="b" x="684" y="428">budget · replay · settlement currency</text>
+<text class="b" x="684" y="448">AP2-shaped, Ed25519 compact JWS</text>
+<text class="green" x="684" y="472">no model call</text>
+<path class="edge" d="M880 488 L880 526"/>
+
+<rect class="box" x="660" y="528" width="440" height="58"/>
+<text class="h" x="684" y="552">CommerceMachine</text>
+<text class="b" x="684" y="571">quote → reserve → capture · cart re-hashed at capture</text>
+<path class="edge" d="M880 586 L880 624"/>
+
+<rect class="box" x="660" y="626" width="440" height="58"/>
+<text class="h" x="684" y="650">Razorpay test mode</text>
+<text class="b" x="684" y="669">headless checkout · captured, or declined and not paid</text>
+
+<path class="edge" d="M360 586 L360 700 L560 700 L560 744"/>
+<path class="edge" d="M880 684 L880 700 L680 700 L680 744"/>
+
+<rect class="box det" x="140" y="746" width="960" height="86"/>
+<text class="amber" x="164" y="772">AuditChain</text>
+<text class="b" x="164" y="794">every decision, refusals included — hash-linked, tamper-evident, verifiable offline</text>
+<text class="b" x="164" y="814">the merchant reads the same records at /console; a refusal renders larger than an approval</text>
+</svg>
