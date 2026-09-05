@@ -15,6 +15,8 @@ Routes:
     /webhooks/razorpay            Razorpay deliveries (also accepted at /)
     /console                      the merchant's own view (local only, see Settings)
     /api/console/*                the JSON behind it
+    /theatre                      a captured buyer-side run, replayed (local only)
+    /theatre/run.json             the capture behind it
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from starlette.routing import Mount, Route
 
 from vendable.audit.chain import Action
 from vendable.console import routes as console_routes
+from vendable.theatre import routes as theatre_routes
 from vendable.core.settings import settings
 from vendable.core.storefront import Storefront
 from vendable.mcp.server import build_app as build_mcp_app
@@ -176,6 +179,10 @@ def build(storefront: Storefront) -> Starlette:
         # It goes BEFORE the mount: `Mount("", ...)` matches every path, so anything
         # after it is unreachable.
         *console_routes(storefront),
+        # A captured buyer-side run, replayed. Same switch as the console, and for the same
+        # reason: it shows real payment identifiers and what the agent was allowed to spend.
+        # Also before the mount, for the reason above.
+        *theatre_routes(),
         Mount("", app=mcp_app),
     ]
     # The MCP app owns a task group that is created in its lifespan. Mounting an ASGI app
