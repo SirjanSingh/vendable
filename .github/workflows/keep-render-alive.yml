@@ -1,0 +1,29 @@
+name: Keep Render instance awake
+
+# Render's free tier spins a service down after 15 minutes idle, so the first request after
+# a gap takes 30-50s. This pings it often enough to stay warm for judges checking the repo.
+# Self-expiring: the ping step no-ops once today passes CUTOFF, so this can be left in place
+# without remembering to come back and delete it. Delete this file whenever it's no longer
+# needed instead of waiting for the cutoff.
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping if still inside the active window
+        env:
+          CUTOFF: "2026-09-15"
+          URL: "https://vendable-zz60.onrender.com/mcp"
+        run: |
+          today=$(date -u +%F)
+          if [[ "$today" > "$CUTOFF" ]]; then
+            echo "Past $CUTOFF, skipping. Delete this workflow file if it's no longer needed."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          echo "GET $URL -> $code"
