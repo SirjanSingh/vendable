@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: vendable-mcp
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m vendable.mcp.server
+    envVars:
+      - key: VENDABLE_MERCHANT
+        value: acme-fasteners
+      - key: VENDABLE_ENV
+        value: production
+      - key: VENDABLE_ALLOWED_HOSTS
+        value: vendable-mcp.onrender.com
+      - key: VENDABLE_PUBLIC_BASE_URL
+        value: https://vendable-mcp.onrender.com
+      - key: VENDABLE_MANDATE_ISSUER
+        value: https://vendable-mcp.onrender.com/mandates
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
