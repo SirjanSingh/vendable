@@ -1,0 +1,367 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   LEDGER GLASS — Theatre
+   ----------------------------------------------------------------------------
+   Ported from vendable/console/index.html, which is the origin of this system,
+   and kept in step with video-remotion/src/theme.ts. The film, the merchant
+   console and this surface are deliberately the same object; a value that
+   differs between the three is a bug, not a variation.
+
+   The thesis is unchanged: refusal is the product, so refusal is the most
+   considered object on the page. Approvals are hairlines. A refusal is a full
+   card with a vermillion rule and its reason set in an editorial serif, because
+   the reasons here are statutes and arithmetic and they should read like a law
+   report, not like a toast notification.
+
+   Three typefaces, each with one job and no overlap:
+     Instrument Serif  reasons, statutes, the merchant's name -- gravity
+     Space Grotesk     chrome, labels, navigation -- industrial, not neutral
+     JetBrains Mono    every number that is money, and every hash -- alignment
+
+   Amber is the merchant's own spendable authority and nothing else. It appears
+   on at most one element per view. If a second thing is amber, one of them is
+   wrong.
+   ========================================================================= */
+
+@theme {
+  --color-ink: #080a0e;
+  --color-ink-2: #0d1016;
+  --color-text: #eceef2;
+  --color-text-dim: #8b93a1;
+  --color-text-faint: #5a6472;
+
+  --color-amber: #e0a458;
+  --color-amber-soft: rgba(224, 164, 88, 0.14);
+
+  --color-refuse: #d6483f;
+  --color-refuse-soft: rgba(214, 72, 63, 0.1);
+  --color-assent: #5fa88a;
+
+  --color-glass: rgba(255, 255, 255, 0.045);
+  --color-glass-2: rgba(255, 255, 255, 0.065);
+  --color-edge: rgba(255, 255, 255, 0.1);
+  --color-edge-lit: rgba(255, 255, 255, 0.22);
+
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* An 8px rhythm, doubled at every third step, so the page has three densities
+     rather than a continuum of arbitrary gaps. */
+  --spacing-s1: 8px;
+  --spacing-s2: 16px;
+  --spacing-s3: 24px;
+  --spacing-s4: 40px;
+  --spacing-s5: 64px;
+
+  /* Linear is forbidden. */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --ink: #080a0e;
+  --ink-2: #0d1016;
+  --text: #eceef2;
+  --text-dim: #8b93a1;
+  --text-faint: #5a6472;
+  --amber: #e0a458;
+  --amber-soft: rgba(224, 164, 88, 0.14);
+  --refuse: #d6483f;
+  --refuse-soft: rgba(214, 72, 63, 0.1);
+  --assent: #5fa88a;
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-2: rgba(255, 255, 255, 0.065);
+  --edge: rgba(255, 255, 255, 0.1);
+  --edge-lit: rgba(255, 255, 255, 0.22);
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --s1: 8px;
+  --s2: 16px;
+  --s3: 24px;
+  --s4: 40px;
+  --s5: 64px;
+  --spring: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink);
+  /* Deliberately NOT also on body: a block background paints above negative
+     z-index descendants, so `background` on body hides the aurora inside body's
+     box and shows it only below, as a hard horizontal seam. */
+  scroll-behavior: auto;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The aurora. Two slow, offset radial fields -- the only ambient motion here,
+   and it stops entirely for anyone who asked it to. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -30vmax;
+  z-index: -2;
+  background:
+    radial-gradient(48vmax 40vmax at 22% 18%, rgba(40, 92, 120, 0.36), transparent 62%),
+    radial-gradient(40vmax 44vmax at 82% 72%, rgba(120, 70, 40, 0.3), transparent 60%),
+    radial-gradient(60vmax 50vmax at 50% 110%, rgba(30, 60, 90, 0.26), transparent 65%);
+  /* The console sets `filter: blur(24px)` here. Do not copy it onto this page.
+     The console is one viewport tall; this one is ~11,700px, and a fixed,
+     blurred element at inset -30vmax promotes a composited layer the size of
+     the whole document. Chromium then drops every layer above it and the page
+     renders black -- not in the DOM, which stays perfectly correct, but in the
+     compositor, which is what a screen recorder captures. Found by screenshot:
+     the markup said the headline was there and the picture said it was not.
+     The gradients already fade to transparent by 60-65%, so the blur was
+     buying almost nothing. */
+  animation: drift 44s ease-in-out infinite alternate;
+}
+
+/* Grain. Without it the gradients band visibly on an 8-bit panel, and the
+   surface reads as plastic rather than glass. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.32;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* -- the glass material ---------------------------------------------------- */
+
+/* The console's glass is a 4.5% white wash over the aurora, which works because
+   nothing there ever overlaps anything else. Here the beats stack, and a card
+   you can read the previous card through is not a card. So the ground is a
+   near-opaque ink instead: still glass against the aurora at the edges, still
+   blurred behind, but it occludes. Backdrop-filter stays as enhancement only --
+   never as the thing that makes text legible, because a screen recorder may
+   composite it away. */
+.glass {
+  position: relative;
+  background: linear-gradient(180deg, rgba(18, 22, 30, 0.94), rgba(11, 14, 20, 0.96));
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 0 0 var(--edge-lit) inset,
+    0 24px 60px -20px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Cards in the stacked deck occlude completely. At 94% the card underneath still
+   showed through -- its money figures are high-contrast mono on dark, which is
+   exactly the kind of content that survives a 6% veil and reads as a printing
+   fault. Only the deck needs this; free-standing panels keep their glass. */
+.deck .glass {
+  background: var(--ink-2);
+  box-shadow:
+    0 1px 0 0 var(--edge-lit) inset,
+    0 40px 80px -24px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* -- typographic primitives ------------------------------------------------ */
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+/* ALL CAPS is reserved for three-to-nine character stamps: REFUSED, INTACT,
+   AUTHORISED. Tracked +0.08em, never used for prose. */
+.stamp {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statement {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.money {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* -- the ledger spine ------------------------------------------------------ */
+
+/* One hairline running the height of the ledger, through every record. It is
+   the hash chain made visible -- each entry hangs off it. */
+.ledger {
+  position: relative;
+  padding-left: 30px;
+}
+
+.ledger::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--edge-lit) 8%,
+    var(--edge-lit) 92%,
+    transparent
+  );
+}
+
+.entry {
+  position: relative;
+  padding: 9px 0 9px 4px;
+}
+
+.entry::before {
+  content: "";
+  position: absolute;
+  left: -25px;
+  top: 17px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  box-shadow: 0 0 0 3px var(--ink-2);
+}
+
+/* An approval is a hairline. This is deliberate: the page should be visually
+   calm when nothing was refused. */
+.entry.assent::before {
+  background: var(--assent);
+}
+
+/* A refusal is a document. Full card, vermillion rule, reason in the serif. */
+.entry.refusal {
+  padding: 0;
+  margin: var(--s2) 0;
+}
+
+.entry.refusal::before {
+  background: var(--refuse);
+  box-shadow:
+    0 0 0 3px var(--ink-2),
+    0 0 14px rgba(214, 72, 63, 0.8);
+}
+
+.refusal-card {
+  border-left: 2px solid var(--refuse);
+  background: linear-gradient(90deg, var(--refuse-soft), transparent 70%);
+  border-radius: 0 14px 14px 0;
+  padding: var(--s2) var(--s3) var(--s2) var(--s2);
+  overflow: hidden;
+}
+
+.refusal-card .tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--refuse);
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.refusal-card .reason {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.42;
+  margin: 9px 0 0;
+  color: #f6e9e4;
+  letter-spacing: 0.002em;
+}
+
+.refusal-card .cite {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-top: 10px;
+}
+
+.refusal-card .cite b {
+  color: var(--amber);
+  font-weight: 500;
+}
+
+/* -- the authority bar ----------------------------------------------------- */
+
+.bar {
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+}
+
+.bar .entitled {
+  background: linear-gradient(90deg, #4e7f9e, #6fa6c4);
+}
+
+.bar .discretion {
+  background: linear-gradient(90deg, var(--amber), #f0c489);
+}
+
+.bar .forbidden {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(214, 72, 63, 0.3) 0 5px,
+    transparent 5px 10px
+  );
+}
