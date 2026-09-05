@@ -100,14 +100,13 @@ payment leg; an OpenAI key adds ingestion and live negotiation.
 claude mcp add --transport http vendable https://vendable-zz60.onrender.com/mcp
 ```
 
-One merchant (`acme-fasteners`) is up on Render's free tier. Same seven tools, same policy
-engine, same audit chain — nothing about the deployed instance is a stub. Two honest limits of
-free-tier hosting, stated rather than hidden: the instance spins down after 15 minutes idle, so
-the first request after a gap takes 30-50s to wake it; and its disk resets on every spin-down,
-so the audit chain and any test-mode purchases don't persist across a sleep cycle. The merchant
-console and the `/theatre` replay are deliberately not exposed here — they show cost prices and
-live spend authority unauthenticated, so they stay local-only by design (see
-[SECURITY.md](SECURITY.md)) and are demonstrated in the video instead.
+One merchant (`acme-fasteners`) is up on Render's free tier, same seven tools, same policy
+engine, same audit chain. Two honest limits of free-tier hosting, stated rather than hidden:
+the instance spins down after 15 minutes idle, so the first request after a gap takes 30-50s to
+wake it, and its disk resets on every spin-down, so the audit chain and any test-mode purchases
+don't persist across a sleep cycle. The merchant console and the `/theatre` replay stay off
+here on purpose. They show cost prices and live spend authority unauthenticated, so they are
+local-only by design (see [SECURITY.md](SECURITY.md)) and are demonstrated in the video instead.
 
 ## Where I chose NOT to use an LLM, and why
 
