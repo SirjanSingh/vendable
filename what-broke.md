@@ -536,3 +536,101 @@ loaded the code earlier is not a check on the code.** It is the same boundary er
 a storefront and reporting on a transport. The fix in both cases is to find an assertion that
 sits downstream of everything that could have changed, and here that was a whole-repo count
 with a remembered baseline.
+
+## 2026-09-05 · A safety guard that would have deleted half the film
+
+Scene three of the video was a camera pan across a static architecture diagram. It explained
+nothing to anyone who did not already know the system, so it was replaced with an animation.
+The scene keeps its slot at 61s for 35s, so only its own ~1,050 frames need re-rendering:
+
+```
+render_film.py --start 61 --end 96 --out G:/vendable-video/frames
+```
+
+That command would have deleted frames 2,880 through 5,579 — every frame after the scene,
+which is half the film.
+
+The cause is a guard added a session earlier for a real problem. Frames are written by index
+and overwrite in place, so a re-timed film that is *shorter* than the last render leaves the
+old tail on disk for `build_film.py` to glob back in, producing a cut that plays fine and is
+silently too long. The guard sweeps it:
+
+```python
+stale = [f for f in out.glob("f*.jpg") if int(f.stem[1:]) >= last]
+```
+
+`last` is derived from `--end`. On a full render `--end` means "where the film ends" and the
+sweep is right. On a ranged render it means "where this scene ends", and the same line now
+reads as *delete everything after the scene I just fixed*. It would have printed
+`removed 2700 stale frames from a longer previous render` and exited 0.
+
+**What did not catch it:** nothing would have, until `build_film.py` produced a 96-second cut.
+The message it prints on the way is not an error, it is a success line describing a correct
+operation on the wrong scope.
+
+**Fix:** the sweep only runs when `args.start == 0 and args.end is None`. A partial render
+knows nothing about where the film ends and must not prune.
+
+**Why it belongs here:** the previous five entries are all checks that could not see the thing
+they claimed to check. This one is the same shape pointed the other way — a *repair* that
+cannot see the scope it is repairing. `last` was never the film's length, it was only ever the
+end of whatever this invocation happened to render, and the two were equal until the first
+time they were not.
+
+Found the same way as the entry above: by asking what the command would do if the assumption
+behind it were false, before running it. Reading a destructive line before invoking it is
+cheaper than restoring 2,700 frames from a re-render.
+
+## 2026-09-05 · Three ways to lose the end of a film and not notice
+
+Part two stopped being a live take and became a second rendered page, narrated. Assembling it
+turned up three defects in a row that share one shape: **the artefact is produced, the command
+exits 0, and the thing that is wrong is a number nobody had a reason to re-read.**
+
+**One. `-shortest` truncated the picture to the voice.** `add_voice` mixed the narration onto
+the frames and passed `-shortest`, which is correct when the audio outlasts the video and
+exactly backwards here. The mix ends when the last cue's line ends; the last scene deliberately
+holds for several seconds after it. So ffmpeg treated the end of the sentence as the end of the
+film and cut 4.32 seconds of picture off the back, including the closing line the whole part
+builds to.
+
+It printed nothing. The build said `part2.mp4  139.68s` and 139.68 is not a suspicious number
+unless you happen to know the frame count is 4,320 and the rate is 30. Caught by dividing.
+Fixed with `apad` before `-shortest`, so the audio is padded to the picture rather than the
+picture trimmed to the audio.
+
+**Two. Two cues were shorter than their own narration.** Re-timing part one to the measured
+voice durations, `vo_02` is 26.38s and its cue was 26s; `vo_05` is 30.28s in a 30s cue. The
+overflow does not truncate anything. It plays the tail of one cue over the head of the next,
+so two narrators speak at once for four tenths of a second, twice, and it sounds like a bad
+edit rather than a bug.
+
+Nothing in the pipeline objected. The picture is right, the mix succeeds, the duration is
+unchanged, and `--pacing` measures words against *reading* speed and has no idea a voice file
+exists. `build_film.py` now compares every voice against the cue it belongs to and refuses.
+
+**Three. `--only` wiped the durations of every cue it did not regenerate.** `make_vo.py`
+writes `durations.json` from the cues it just built, so regenerating one cue left a file
+naming one cue. That file is what places the voice in the cut. It now merges.
+
+**Why these belong here:** the earlier entries in this file are checks that could not see what
+they claimed to check. These are three cases of a *result* that cannot see what it is missing.
+A truncated film, a film with overlapping narrators and a film with five silent cues all
+produce a valid mp4 of a plausible length, and none of them fails anything. The only reliable
+handle was arithmetic done on purpose against a number known in advance: 4320 over 30 is 144,
+not 139.68, and 26.38 does not fit in 26.
+
+**A fourth, in the tooling for the above.** `make_run_lines.py` warns when a line it expects
+is absent, because that means the run changed shape. A per-scene line cap was then added, and
+the warning ran after it, so trimming a line for length was reported as the run no longer
+printing it. A diagnostic that blames the wrong layer is worse than no diagnostic. The check
+now runs before the cap.
+
+## 2026-09-01 · The check that only ever looked at one scene
+
+`--check` proves `seek(t)` is a pure function
+of `t` by rendering one frame twice with a jumble of seeks in between. It compared a single
+frame at `t=42`, which is inside scene 2. Scene 3 could have carried state in every frame and
+the check would still have passed, because it never looked there. It now samples one `t` per
+cue and names the scene that fails. A sampled assertion only covers what it samples, and the
+sample was chosen when the film had one scene worth worrying about.
