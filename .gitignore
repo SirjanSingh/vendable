@@ -27,3 +27,14 @@ evidence/raw/
 # Video production: regenerate with `verify_console.py --shots docs/video/assets/console`.
 # ~9 MB of PNGs; the command is committed, the pixels are not.
 docs/video/assets/console/
+
+# Video production: regenerate with `verify_theatre.py --shots docs/video/assets/theatre`.
+docs/video/assets/theatre/
+
+# node projects (video-remotion, theatre): dependencies and build output, not source
+node_modules/
+video-remotion/out/
+video-remotion/audio/
+video-remotion/audio_*/
+video-remotion/public/audio/music_bed.wav
+theatre/dist/
